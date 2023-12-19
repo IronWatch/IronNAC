@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Text;
 using Radius;
+using Radius.RadiusAttributes;
 
 UdpClient accounting = new(new IPEndPoint(IPAddress.Any, 1812));
 IPEndPoint accountingRemoteEndpoint = new(IPAddress.Any, 0);
@@ -10,6 +11,11 @@ IPEndPoint controllerCoAEndpoint = new(IPAddress.Parse("10.100.0.1"), 3799);
 
 byte[] secret = Encoding.ASCII.GetBytes("thesecret");
 byte lastSeenIdentifier = 0;
+
+RadiusAttributeParser parser = new();
+parser.AddDefault();
+
+Console.WriteLine($"Discovered {parser.Types.Count} parseable IRadiusAttribute Types\n");
 
 try
 {
@@ -20,7 +26,7 @@ try
 
         try
         {
-            request = RadiusPacket.FromBytes(packet);
+            request = RadiusPacket.FromBytes(packet, parser);
         }
         catch (RadiusException radEx)
         {
@@ -34,35 +40,33 @@ try
 
         if (request.Code != RadiusCode.ACCESS_REQUEST) continue;
 
-        string? username = request.GetAttributeString(RadiusAttributeType.USER_NAME);
+        string? username = request.GetAttribute<UserNameAttribute>()?.Username;
 
         Console.Write($"Request {request.Identifier} for {username} ");
         Console.WriteLine("ACCEPTED");
 
-        RadiusAttribute[] vlanAttributes = [
-            RadiusAttribute.Build(RadiusAttributeType.TUNNEL_TYPE, [0,0,0,13]),
-            RadiusAttribute.Build(RadiusAttributeType.TUNNEL_MEDIUM_TYPE, [0, 0, 0, 6])
+        IRadiusAttribute[] vlanAssignmentAttributes = [
+            new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN),
+            new TunnelMediumTypeAttribute(0, TunnelMediumTypeAttribute.Values.IEEE_802)
         ];
-
-        RadiusAttribute vlan255 =
-            RadiusAttribute.Build(RadiusAttributeType.TUNNEL_PRIVATE_GROUP_ID, Encoding.ASCII.GetBytes("255").Prepend<byte>(0).ToArray());
-
-        RadiusAttribute vlan254 =
-            RadiusAttribute.Build(RadiusAttributeType.TUNNEL_PRIVATE_GROUP_ID, Encoding.ASCII.GetBytes("254").Prepend<byte>(0).ToArray());
 
         RadiusPacket response = RadiusPacket.Create(
             RadiusCode.ACCESS_ACCEPT,
             request.Identifier,
-            attributes: vlanAttributes)
-            .AddAttribute(vlan255)
+            attributes: vlanAssignmentAttributes)
+            .AddAttribute(new TunnelPrivateGroupIdAttribute(0, "254"))
             .AddMessageAuthenticator(secret)
             .ReplaceAuthenticator(request.Authenticator)
             .Sign(secret);
 
-        accounting.Send(response.ToBytes(), accountingRemoteEndpoint);
+        byte[] responseBytes = response.ToBytes();
 
+        accounting.Send(responseBytes, accountingRemoteEndpoint);
+
+        /*
         if (++lastSeenIdentifier > byte.MaxValue) lastSeenIdentifier = 0;
 
+        // We need accounting attributes here too so this won't work right now
         RadiusPacket coa = RadiusPacket.Create(
             RadiusCode.COA_REQUEST,
             lastSeenIdentifier)
@@ -77,7 +81,7 @@ try
 
         await Task.Delay(5000);
 
-        accounting.Send(coa.ToBytes(), controllerCoAEndpoint);
+        accounting.Send(coa.ToBytes(), controllerCoAEndpoint);*/
     }
 }
 catch (SocketException sockEx)

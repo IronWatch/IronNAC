@@ -18,7 +18,7 @@ namespace Radius
 
         public byte[] Authenticator { get; private set; } = Array.Empty<byte>();
 
-        private List<RadiusAttribute> Attributes = [];
+        private List<IRadiusAttribute> Attributes = [];
 
         private RadiusPacket() { }
 
@@ -26,7 +26,7 @@ namespace Radius
             RadiusCode code,
             byte? identifier = null,
             byte[]? authenticator = null,
-            params RadiusAttribute[] attributes)
+            params IRadiusAttribute[] attributes)
         {
             RadiusPacket packet = new()
             {
@@ -44,16 +44,18 @@ namespace Radius
             // Calculate Length
             int packetLength = 20;
 
-            foreach (RadiusAttribute attribute in this.Attributes)
+            foreach (IRadiusAttribute attribute in this.Attributes)
             {
-                int attributeLength = (2 + attribute.Value.Length);
+                /*int attributeLength = (2 + attribute.Value.Length);
                 if (attributeLength > byte.MaxValue)
                 {
                     throw new RadiusException($"Malformed RADIUS Attribute. Length larger than {byte.MaxValue} bytes");
                 }
 
                 attribute.Length = (byte)attributeLength;
-                packetLength += attributeLength;
+                packetLength += attributeLength;*/
+
+                packetLength += attribute.Raw.Length;
             }
 
             if (packetLength > ushort.MaxValue)
@@ -105,30 +107,30 @@ namespace Radius
 
             byte[] hash = hmac.ComputeHash(buffer);
 
-            RadiusAttribute messageAuthenticator
-                    = RadiusAttribute.Build(RadiusAttributeType.MESSAGE_AUTHENTICATOR, hash);
+            RawRadiusAttribute messageAuthenticator
+                    = RawRadiusAttribute.Build(RadiusAttributeType.MESSAGE_AUTHENTICATOR, hash);
 
             return this.AddAttribute(messageAuthenticator);
         }
 
-        public RadiusPacket AddAttribute(RadiusAttribute? attribute)
+        public RadiusPacket AddAttribute(IRadiusAttribute? attribute)
         {
             if (attribute is null) return this;
             
-            if (this.Attributes.Any(x => x.Type == attribute.Type))
+            if (this.Attributes.Any(x => x.Raw.Type == attribute.Raw.Type))
             {
-                throw new RadiusException($"Refusing to add duplicate attribute of type {attribute.Type}!");
+                throw new RadiusException($"Refusing to add duplicate attribute of type {attribute.Raw.Type}!");
             }
 
             this.Attributes.Add(attribute);
-            this.Length += attribute.Length;
+            this.Length += attribute.Raw.Length;
 
             return this;
         }
 
-        public RadiusPacket AddAttributes(params RadiusAttribute[] attributes)
+        public RadiusPacket AddAttributes(params IRadiusAttribute[] attributes)
         {
-            foreach (RadiusAttribute attribute in attributes)
+            foreach (IRadiusAttribute attribute in attributes)
             {
                 this.AddAttribute(attribute);
             }
@@ -138,19 +140,19 @@ namespace Radius
 
         public RadiusPacket RemoveAttribute(RadiusAttributeType type)
         {
-            RadiusAttribute? attribute = this.Attributes
-                .Where(x => x.Type == type)
+            IRadiusAttribute? attribute = this.Attributes
+                .Where(x => x.Raw.Type == type)
                 .FirstOrDefault();
 
             if (attribute is null) return this;
 
             this.Attributes.Remove(attribute);
-            this.Length -= attribute.Length;
+            this.Length -= attribute.Raw.Length;
 
             return this;
         }
 
-        public static RadiusPacket FromBytes(byte[] bytes)
+        public static RadiusPacket FromBytes(byte[] bytes, RadiusAttributeParser? parser)
         {
             Span<byte> buffer = bytes.AsSpan();
 
@@ -167,11 +169,18 @@ namespace Radius
             RadiusPacket packet = new();
             packet.Code = (RadiusCode)buffer[0];
             packet.Identifier = buffer[1];
-            packet.Length = BinaryPrimitives.ReverseEndianness(
-                BitConverter.ToUInt16(buffer[2..4]));
+            if (BitConverter.IsLittleEndian)
+            {
+                packet.Length = BinaryPrimitives.ReverseEndianness(
+                    BitConverter.ToUInt16(buffer[2..4]));
+            }
+            else
+            {
+                packet.Length = BitConverter.ToUInt16(buffer[2..4]);
+            }
             packet.Authenticator = buffer[4..20].ToArray();
 
-            packet.Attributes = RadiusAttribute.ExtractAll(buffer[20..].ToArray());
+            packet.Attributes =  RawRadiusAttribute.ExtractAll(buffer[20..].ToArray(), parser);
 
             return packet;
         }
@@ -183,8 +192,18 @@ namespace Radius
             buffer[0] = (byte)this.Code;
             buffer[1] = this.Identifier;
 
+            byte[] lengthBytes;
+            if (BitConverter.IsLittleEndian)
+            {
+                lengthBytes = BitConverter.GetBytes(BinaryPrimitives.ReverseEndianness(this.Length));
+            }
+            else
+            {
+                lengthBytes = BitConverter.GetBytes(this.Length);
+            }
+
             Array.Copy(
-                sourceArray: BitConverter.GetBytes(BinaryPrimitives.ReverseEndianness(this.Length)), 
+                sourceArray: lengthBytes, 
                 sourceIndex: 0, 
                 destinationArray: buffer, 
                 destinationIndex: 2, 
@@ -203,37 +222,37 @@ namespace Radius
                 length: 16);
 
             int index = 20;
-            foreach (RadiusAttribute attribute in this.Attributes)
+            foreach (IRadiusAttribute attribute in this.Attributes)
             {
-                buffer[index] = (byte)attribute.Type;
-                buffer[index + 1] = attribute.Length;
+                buffer[index] = (byte)attribute.Raw.Type;
+                buffer[index + 1] = attribute.Raw.Length;
 
                 Array.Copy(
-                    sourceArray: attribute.Value,
+                    sourceArray: attribute.Raw.Value,
                     sourceIndex: 0,
                     destinationArray: buffer,
                     destinationIndex: index + 2,
-                    length: attribute.Length - 2);
+                    length: attribute.Raw.Length - 2);
 
-                index += attribute.Length;
+                index += attribute.Raw.Length;
             }
 
             return buffer;
         }
 
-        public RadiusAttribute? GetAttribute(RadiusAttributeType type)
+        public IRadiusAttribute? GetAttribute(RadiusAttributeType type)
         {
             return this.Attributes
-                .Where(x => x.Type == type)
+                .Where(x => x.Raw.Type == type)
                 .FirstOrDefault();
         }
 
-        public string? GetAttributeString(RadiusAttributeType type)
+        public T? GetAttribute<T>()
         {
-            RadiusAttribute? attribute = this.GetAttribute(type);
-            if (attribute is null) return null;
-
-            return Encoding.ASCII.GetString(attribute.Value);
+            return this.Attributes
+                .Where(x => x.GetType() == typeof(T))
+                .Cast<T>()
+                .FirstOrDefault();
         }
     }
 }
