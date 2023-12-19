@@ -18,22 +18,33 @@ namespace Radius
 
         public byte[] Authenticator { get; private set; } = Array.Empty<byte>();
 
-        public List<RadiusAttribute> Attributes { get; set; } = [];
+        private List<RadiusAttribute> Attributes = [];
 
         private RadiusPacket() { }
 
-        public byte[] CreateResponse(RadiusCode code, byte[] secret, params RadiusAttribute[] attributes)
+        public static RadiusPacket Create(
+            RadiusCode code,
+            byte? identifier = null,
+            byte[]? authenticator = null,
+            params RadiusAttribute[] attributes)
         {
-            RadiusPacket response = new();
-            response.Code = code;
-            response.Identifier = this.Identifier;
-            response.Authenticator = [0,0,0,0,0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0,]; // zerod for message-authenticator calc
-            response.Attributes = attributes.ToList();
+            RadiusPacket packet = new()
+            {
+                Code = code,
+                Identifier = identifier ?? 0,
+                Authenticator = authenticator ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,],
+                Attributes = [.. attributes]
+            };
 
+            return packet.UpdateLength();
+        }
+
+        public RadiusPacket UpdateLength()
+        {
             // Calculate Length
             int packetLength = 20;
 
-            foreach (RadiusAttribute attribute in response.Attributes)
+            foreach (RadiusAttribute attribute in this.Attributes)
             {
                 int attributeLength = (2 + attribute.Value.Length);
                 if (attributeLength > byte.MaxValue)
@@ -50,55 +61,93 @@ namespace Radius
                 throw new RadiusException($"Malformed RADIUS Packet. Length larger than {ushort.MaxValue} bytes");
             }
 
-            response.Length = (ushort)packetLength;
+            this.Length = (ushort)packetLength;
 
-            // Calculate HMAC MD5 Attribute if needed
-            if (this.Attributes.Any(x => x.Type == RadiusAttributeType.MESSAGE_AUTHENTICATOR))
-            {
-                byte[] hmacPacketBuffer = response.ToBytes();
+            return this;
+        }
 
-                using System.Security.Cryptography.HMACMD5 hmacmd5 = new(secret);
-                byte[] hmacmd5Hash = hmacmd5.ComputeHash(hmacPacketBuffer);
+        public RadiusPacket ReplaceAuthenticator(byte[] authenticator)
+        {
+            this.Authenticator = authenticator;
+            return this;
+        }
 
-                RadiusAttribute messageAuthenticator 
-                    = RadiusAttribute.Build(RadiusAttributeType.MESSAGE_AUTHENTICATOR, hmacmd5Hash);
+        public RadiusPacket Sign(byte[] secret)
+        {
+            byte[] buffer = this.ToBytes();
+            byte[] md5Buffer = new byte[buffer.Length + secret.Length];
 
-                response.Attributes.Add(messageAuthenticator);
-                response.Length += messageAuthenticator.Length;
-            }
-
-            response.Authenticator = this.Authenticator; // set to request authenticator for resposne authenticator calc
-
-            // Get bytes
-            byte[] packetBuffer = response.ToBytes();
-
-            byte[] md5Buffer = new byte[packetBuffer.Length + secret.Length];
             Array.Copy(
-                sourceArray: packetBuffer,
+                sourceArray: buffer,
                 sourceIndex: 0,
                 destinationArray: md5Buffer,
                 destinationIndex: 0,
-                length: packetBuffer.Length);
+                length: buffer.Length);
             Array.Copy(
                 sourceArray: secret,
                 sourceIndex: 0,
                 destinationArray: md5Buffer,
-                destinationIndex: packetBuffer.Length,
+                destinationIndex: buffer.Length,
                 length: secret.Length);
 
-            // Calculate response hash
             using System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
 
-            byte[] newAuthenticator = md5.ComputeHash(md5Buffer);
-            Array.Copy(
-                sourceArray: newAuthenticator,
-                sourceIndex: 0,
-                destinationArray: packetBuffer,
-                destinationIndex: 4,
-                length: 16);
+            this.Authenticator = md5.ComputeHash(md5Buffer);
 
-            return packetBuffer;
+            return this;
+        }
 
+        public RadiusPacket AddMessageAuthenticator(byte[] secret)
+        {
+            byte[] buffer = this.ToBytes();
+
+            using System.Security.Cryptography.HMACMD5 hmac = new(secret);
+
+            byte[] hash = hmac.ComputeHash(buffer);
+
+            RadiusAttribute messageAuthenticator
+                    = RadiusAttribute.Build(RadiusAttributeType.MESSAGE_AUTHENTICATOR, hash);
+
+            return this.AddAttribute(messageAuthenticator);
+        }
+
+        public RadiusPacket AddAttribute(RadiusAttribute? attribute)
+        {
+            if (attribute is null) return this;
+            
+            if (this.Attributes.Any(x => x.Type == attribute.Type))
+            {
+                throw new RadiusException($"Refusing to add duplicate attribute of type {attribute.Type}!");
+            }
+
+            this.Attributes.Add(attribute);
+            this.Length += attribute.Length;
+
+            return this;
+        }
+
+        public RadiusPacket AddAttributes(params RadiusAttribute[] attributes)
+        {
+            foreach (RadiusAttribute attribute in attributes)
+            {
+                this.AddAttribute(attribute);
+            }
+
+            return this;
+        }
+
+        public RadiusPacket RemoveAttribute(RadiusAttributeType type)
+        {
+            RadiusAttribute? attribute = this.Attributes
+                .Where(x => x.Type == type)
+                .FirstOrDefault();
+
+            if (attribute is null) return this;
+
+            this.Attributes.Remove(attribute);
+            this.Length -= attribute.Length;
+
+            return this;
         }
 
         public static RadiusPacket FromBytes(byte[] bytes)
@@ -172,12 +221,19 @@ namespace Radius
             return buffer;
         }
 
-        public string? ReadString(RadiusAttributeType type)
+        public RadiusAttribute? GetAttribute(RadiusAttributeType type)
         {
             return this.Attributes
                 .Where(x => x.Type == type)
-                .Select(x => Encoding.ASCII.GetString(x.Value))
                 .FirstOrDefault();
+        }
+
+        public string? GetAttributeString(RadiusAttributeType type)
+        {
+            RadiusAttribute? attribute = this.GetAttribute(type);
+            if (attribute is null) return null;
+
+            return Encoding.ASCII.GetString(attribute.Value);
         }
     }
 }
