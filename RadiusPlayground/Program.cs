@@ -16,14 +16,13 @@ RadiusAttributeParser parser = new();
 parser.AddDefault();
 Console.WriteLine($"Discovered {parser.Types.Count} parseable IRadiusAttribute Types\n");
 
+List<SessionRecord> sessions = new();
 List<ClientRecord> clients = new();
 
 IRadiusAttribute[] vlanAssignmentAttributes = [
     new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN),
     new TunnelMediumTypeAttribute(0, TunnelMediumTypeAttribute.Values.IEEE_802)
 ];
-
-string vlanToAssign = "254";
 
 try
 {
@@ -45,6 +44,8 @@ try
         Console.WriteLine($"Received {incoming.Code}");
         lastSeenIdentifier = incoming.Identifier;
         string? mac = incoming.GetAttribute<UserNameAttribute>()?.Value;
+        ClientRecord? client = clients.Where(x => x.ClientMAC == mac).FirstOrDefault();
+        SessionRecord? session = sessions.Where(x => x.ClientMAC == mac).FirstOrDefault();
 
         RadiusPacket response;
 
@@ -52,38 +53,57 @@ try
         {
             case RadiusCode.ACCESS_REQUEST:
 
-                Console.Write($"Request {incoming.Identifier} for {mac} ");
-                Console.WriteLine("ACCEPTED");
+                if (mac is null) break;
+                
+                Console.Write($"Access Request {mac} ");
 
-                response = RadiusPacket.Create(
-                    RadiusCode.ACCESS_ACCEPT,
-                    incoming.Identifier,
-                    attributes: vlanAssignmentAttributes)
-                    .AddAttribute(new TunnelPrivateGroupIdAttribute(0, vlanToAssign))
-                    .AddMessageAuthenticator(secret)
-                    .AddResponseAuthenticator(secret, incoming.Authenticator);
-                udpClient.Send(response.ToBytes(), remoteEndpoint);
-
-                clients = clients
-                    .Where(x => x.ClientMAC != mac)
-                    .ToList();
-
-                clients.Add(new()
+                if (client is not null &&
+                    client.Blocked)
                 {
-                    ClientMAC = mac,
-                    VLAN = vlanToAssign,
-                    UserName = incoming.GetAttribute<UserNameAttribute>(),
-                    NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>(),
-                    NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>(),
-                    CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>(),
-                    CalledStationId = incoming.GetAttribute<CalledStationIdAttribute>(),
-                    AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>(),
-                });
-                Console.WriteLine($"Added {mac}");
+                    // Blocked Client
+                    response = RadiusPacket.Create(
+                        RadiusCode.ACCESS_REJECT,
+                        incoming.Identifier)
+                        .AddMessageAuthenticator(secret)
+                        .AddResponseAuthenticator(secret, incoming.Authenticator);
+                    Console.WriteLine("BLOCKED CLIENT");
+                }
+                else if (client is not null &&
+                    client.Guest)
+                {
+                    // Guest
+                    response = RadiusPacket.Create(
+                        RadiusCode.ACCESS_ACCEPT,
+                        incoming.Identifier)
+                        .AddAttributes(vlanAssignmentAttributes)
+                        .AddAttribute(new TunnelPrivateGroupIdAttribute(0, "254"))
+                        .AddMessageAuthenticator(secret)
+                        .AddResponseAuthenticator(secret, incoming.Authenticator);
+                    Console.WriteLine("GUEST");
+                }
+                else
+                {
+                    // Registration
+                    response = RadiusPacket.Create(
+                        RadiusCode.ACCESS_ACCEPT,
+                        incoming.Identifier)
+                        .AddAttributes(vlanAssignmentAttributes)
+                        .AddAttribute(new TunnelPrivateGroupIdAttribute(0, "255"))
+                        .AddMessageAuthenticator(secret)
+                        .AddResponseAuthenticator(secret, incoming.Authenticator);
+                    Console.WriteLine("REGISTRATION");
 
+                    client = new() { ClientMAC = mac };
+                    clients.Add(client);
+                }
+
+                udpClient.Send(response.ToBytes(), remoteEndpoint);
+                
                 break;
 
             case RadiusCode.ACCOUNTING_REQUEST:
+                
+                // We got the message
                 response = RadiusPacket.Create(
                     RadiusCode.ACCOUNTING_RESPONSE,
                     incoming.Identifier)
@@ -99,49 +119,69 @@ try
                 switch (statusType.StatusType)
                 {
                     case AccountingStatusTypeAttribute.StatusTypes.START:
-                        ClientRecord? client = clients.Where(x => x.ClientMAC == mac).FirstOrDefault();
+
+                        if (mac is null) break;
+
+                        if (session is null)
+                        {
+                            session = new();
+                            Console.WriteLine($"New Session {mac}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Updated Session {mac}");
+                        }
+                        
+                        session.ClientMAC = mac;
+                        session.UserName = incoming.GetAttribute<UserNameAttribute>();
+                        session.NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>();
+                        session.NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>();
+                        session.CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>();
+                        session.CalledStationId = incoming.GetAttribute<CalledStationIdAttribute>();
+                        session.AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>();
+
+
+                        // disconnect testing
                         if (client is null) break;
+                        if (session.NasIpAddress is null) break;
 
-                        client.UserName = incoming.GetAttribute<UserNameAttribute>();
-                        client.NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>();
-                        client.NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>();
-                        client.CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>();
-                        client.CalledStationId = incoming.GetAttribute<CalledStationIdAttribute>();
-                        client.AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>();
-
-                        Console.WriteLine($"Updated {mac}");
-
-                        if (client.NasIpAddress is null) break;
+                        Console.Write($"VLAN Change Testing {mac} ");
+                        if (!client.Blocked && !client.Guest)
+                        {
+                            client.Guest = true;
+                            Console.WriteLine("from REGISTRATION to GUEST");
+                        }
+                        else if (!client.Blocked && client.Guest)
+                        {
+                            client.Blocked = true;
+                            client.Guest = false;
+                            Console.WriteLine("from GUEST to BLOCKED");
+                        }                        
 
                         Console.WriteLine("Sleeping 5 seconds before Disconnect");
                         Thread.Sleep(5000);
                         Console.WriteLine("Attempting Disconnect");
 
-                        vlanToAssign = "255";
-
                         RadiusPacket disconnect = RadiusPacket.Create(
                             RadiusCode.DISCONNECT_REQUEST,
                             ++lastSeenIdentifier,
                             null)
-                            //.AddAttribute(client.UserName)
-                            .AddAttribute(client.CallingStationId)
-                            .AddAttribute(client.NasIpAddress)
-                            .AddAttribute(client.NasIdentifier)
-                            .AddAttribute(client.AccountingSessionId);
-                        //.AddAttributes(vlanAssignmentAttributes)
-                        //.AddAttribute(new TunnelPrivateGroupIdAttribute(0, "255"));
+                            .AddAttribute(session.CallingStationId)
+                            .AddAttribute(session.NasIpAddress)
+                            .AddAttribute(session.NasIdentifier)
+                            .AddAttribute(session.AccountingSessionId);
 
                         disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
 
-                        udpClient.Send(disconnect.ToBytes(), new IPEndPoint(client.NasIpAddress.Address, 3799));
+                        udpClient.Send(disconnect.ToBytes(), new IPEndPoint(session.NasIpAddress.Address, 3799));
 
                         break;
 
                     case AccountingStatusTypeAttribute.StatusTypes.STOP:
-                        clients = clients
+                        sessions = sessions
                             .Where(x => x.ClientMAC != mac)
                             .ToList();
-                        Console.WriteLine($"Removed {mac}");
+                        Console.WriteLine($"Removed Session {mac}");
 
                         break;
                     default:
