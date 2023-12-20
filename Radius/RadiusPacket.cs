@@ -10,6 +10,9 @@ namespace Radius
 {
     public class RadiusPacket
     {
+        public static readonly byte[] EMPTY_AUTHENTICATOR = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,];
+
+
         public RadiusCode Code { get; set; }
 
         public byte Identifier { get; set; }
@@ -32,7 +35,7 @@ namespace Radius
             {
                 Code = code,
                 Identifier = identifier ?? 0,
-                Authenticator = authenticator ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,],
+                Authenticator = authenticator ?? EMPTY_AUTHENTICATOR,
                 Attributes = [.. attributes]
             };
 
@@ -46,15 +49,6 @@ namespace Radius
 
             foreach (IRadiusAttribute attribute in this.Attributes)
             {
-                /*int attributeLength = (2 + attribute.Value.Length);
-                if (attributeLength > byte.MaxValue)
-                {
-                    throw new RadiusException($"Malformed RADIUS Attribute. Length larger than {byte.MaxValue} bytes");
-                }
-
-                attribute.Length = (byte)attributeLength;
-                packetLength += attributeLength;*/
-
                 packetLength += attribute.Raw.Length;
             }
 
@@ -68,15 +62,30 @@ namespace Radius
             return this;
         }
 
-        public RadiusPacket ReplaceAuthenticator(byte[] authenticator)
+        public RadiusPacket ReplaceAuthenticator(byte[]? authenticator)
         {
+            if (authenticator is null)
+                authenticator = EMPTY_AUTHENTICATOR;
+
+            if (authenticator.Length != 16)
+                throw new RadiusException($"Invalid Authenticator Length");
+
             this.Authenticator = authenticator;
             return this;
         }
 
-        public RadiusPacket Sign(byte[] secret)
+        public byte[] CalculateAuthenticator(byte[] secret, byte[]? preinsertAuthenticator = null)
         {
             byte[] buffer = this.ToBytes();
+
+            if (preinsertAuthenticator is not null)
+            {
+                if (preinsertAuthenticator.Length != 16)
+                    throw new RadiusException("Invalid Pre-Insert Authenticator Length!");
+
+                Array.Copy(preinsertAuthenticator, 0, buffer, 4, 16);
+            }
+
             byte[] md5Buffer = new byte[buffer.Length + secret.Length];
 
             Array.Copy(
@@ -94,9 +103,12 @@ namespace Radius
 
             using System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
 
-            this.Authenticator = md5.ComputeHash(md5Buffer);
+            return md5.ComputeHash(md5Buffer);
+        }
 
-            return this;
+        public RadiusPacket AddResponseAuthenticator(byte[] secret, byte[] requestAuthenticator)
+        {
+            return this.ReplaceAuthenticator(this.CalculateAuthenticator(secret, requestAuthenticator));
         }
 
         public RadiusPacket AddMessageAuthenticator(byte[] secret)
