@@ -142,6 +142,7 @@ try
 
 
                         // disconnect testing
+                        /*
                         if (client is null) break;
                         if (session.NasIpAddress is null) break;
 
@@ -174,7 +175,7 @@ try
                         disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
 
                         udpClient.Send(disconnect.ToBytes(), new IPEndPoint(session.NasIpAddress.Address, 3799));
-
+                        */
                         break;
 
                     case AccountingStatusTypeAttribute.StatusTypes.STOP:
