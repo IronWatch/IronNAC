@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DNSListener.DNS;
+using DNS;
 
-namespace DNSListener.DNS.ResourceRecords
+namespace DNS.ResourceRecords
 {
     public abstract class BaseResourceRecord : IDnsResourceRecord
     {

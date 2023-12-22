@@ -1,7 +1,87 @@
-﻿@page "/guest/s/default"
+﻿@page "/portal"
+@using CaptivePortal.Data
+@using System.Net
+@rendermode InteractiveServer
+@inject NavigationManager navigationManager
+@inject DatabaseService databaseService
+@inject RadiusDisconnector disconnector
+@inject IHttpContextAccessor httpContextAccessor
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Captive Portal</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Wifi Captive Portal</h1>
 
-Welcome to your new app.
+@if (ClientIp is null)
+{
+    <p>Your device&apos;s IP address could not be determined. Please contact the IT Support Team</p>
+}
+else if (ClientMac is null)
+{
+    <p>Please wait while your device MAC address is detected. This should only take a moment.</p>
+}
+else if (Client?.AuthorizedUntil is null)
+{
+    <p>You may now connect to the Wifi Network</p>
+    <p>Once you press connect, we will attempt to automatically disconnect and reconnect your device. If for some reason this process fails, or you have disabled automatic reconnection on your device, you will need to manually re-connect to this Wifi Network.</p>
+    <button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(ClientMac == null)">Connect</button>
+}
+else if (RegistrationClientIp == ClientIp.ToString())
+{
+    <p>Your access to the network is being enabled. You will be disconnected from the wifi network and we will attempt to automatically reconnect your device. If for some reason this process fails, or you have disabled automatic reconnection on your device, you will need to manually re-connect to this Wifi Network.</p>
+}
+
+<p>Client IP Address: @ClientIp</p>
+<p>Client MAC Address: @ClientMac</p>
+<p>Authorized Until: @Client?.AuthorizedUntil</p>
+
+<button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(ClientMac == null)">Connect</button>
+
+@code {
+
+    public string? RegistrationClientIp { get; set; }
+    public IPAddress? ClientIp { get; set; }
+    public string? ClientMac { get; set; }
+    public Session? Session { get; set; }
+    public Client? Client { get; set; }
+
+    protected override void OnInitialized()
+    {
+        CheckDatabase();
+    }
+
+    private void CheckDatabase()
+    {
+        ClientIp = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
+
+        KeyValuePair<string, Session>? sessionKvp = databaseService.Sessions
+            .Where(x =>
+                x.Value.FramedIpAddress != null &&
+                x.Value.FramedIpAddress.Address.Equals(ClientIp))
+            .FirstOrDefault();
+
+        ClientMac = sessionKvp?.Key;
+        Session = sessionKvp?.Value;
+
+        if (ClientMac is null) return;
+
+        databaseService.Clients.TryGetValue(ClientMac, out Client? client);
+        Client = client;
+
+        if (client?.AuthorizedUntil is null)
+        {
+            RegistrationClientIp = ClientIp?.ToString();
+        }
+    }
+
+    private async Task ConnectAsync()
+    {
+        if (ClientMac is null || Client is null) return;
+
+        Client.AuthorizedUntil
+            = DateTime.UtcNow.AddMinutes(480);
+
+        await Task.Delay(1000);
+
+        await disconnector.Disconnect(ClientMac);
+    }
+}

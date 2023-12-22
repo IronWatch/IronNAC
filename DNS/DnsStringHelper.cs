@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DNSListener.DNS
+namespace DNS
 {
     public static class DnsStringHelper
     {
@@ -20,15 +20,10 @@ namespace DNSListener.DNS
             while (true)
             {
                 currentLength = Convert.ToInt32(buffer[index]);
-
-                if (currentLength == 0)
-                {
-                    break;
-                }
-
                 index++;
 
-                if (index + currentLength >= buffer.Length)
+                if (currentLength == 0 ||
+                    index + currentLength >= buffer.Length)
                 {
                     break;
                 }
@@ -39,7 +34,10 @@ namespace DNSListener.DNS
                 index += currentLength;
             }
 
-            numBytesParsed = index + 1;
+            // zero length string safety
+            if (index < 2) { index = 2; }
+
+            numBytesParsed = index;
 
             return result.TrimEnd('.');
         }

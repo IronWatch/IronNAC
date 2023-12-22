@@ -5,12 +5,11 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using DNSListener.DNS;
 
-namespace DNSListener.DNS.ResourceRecords
+namespace Radius.RadiusAttributes
 {
-    [DnsResource(DnsResourceRecordTypes.A)]
-    public class ARecord : BaseResourceRecord
+    [RadiusAttribute(RadiusAttributeType.FRAMED_IP_ADDRESS)]
+    public class FramedIpAddressAttribute : BaseRadiusAttribute
     {
         public IPAddress Address
         {
@@ -33,16 +32,17 @@ namespace DNSListener.DNS.ResourceRecords
         }
 
         [SetsRequiredMembers]
-        public ARecord(IPAddress address)
+        public FramedIpAddressAttribute(IPAddress address)
         {
             Raw = new()
             {
-                Type = DnsResourceRecordTypes.A
+                Type = RadiusAttributeType.FRAMED_IP_ADDRESS,
+                Value = []
             };
 
-            Address = address;
+            this.Address = address;
         }
 
-        private ARecord() { }
+        private FramedIpAddressAttribute() { }
     }
 }

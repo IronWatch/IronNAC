@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DNSListener.DNS
+namespace DNS
 {
     public enum DnsResourceRecordTypes : ushort
     {
