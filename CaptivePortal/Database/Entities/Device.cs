@@ -10,10 +10,11 @@
         public int? DeviceNetworkId { get; set; }
         public DeviceNetwork? DeviceNetwork { get; set; }
 
+        public bool Authorized { get; set; }
         public DateTime? AuthorizedUntil { get; set; }
 
         public string? DeviceMac { get; set; }
-        public string? DeviceIpAddress { get; set; }
+        public string? DetectedDeviceIpAddress { get; set; }
 
         public string? NasIpAddress { get; set; }
         public string? NasIdentifier { get; set; }

@@ -1,6 +1,7 @@
 using CaptivePortal;
 using CaptivePortal.Components;
 using CaptivePortal.Database;
+using CaptivePortal.Services;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,7 +23,10 @@ builder.Services.AddSingleton<RadiusAttributeParserService>();
 builder.Services.AddHostedService<RadiusAuthorizationBackgroundService>();
 builder.Services.AddHostedService<RadiusAccountingBackgroundService>();
 builder.Services.AddHostedService<DnsRedirectionServerBackgroundService>();
+
 builder.Services.AddDbContext<CaptivePortalDbContext>();
+
+builder.Services.AddScoped<WebAuthenticationService>();
 
 WebApplication app = builder.Build();
 

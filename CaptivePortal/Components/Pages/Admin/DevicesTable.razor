@@ -1,0 +1,68 @@
+﻿@page "/admin/devices"
+@using CaptivePortal.Database
+@using CaptivePortal.Database.Entities
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject CaptivePortalDbContext db
+@inject RadiusDisconnector disconnector
+
+<PageTitle>Admin > Devices</PageTitle>
+
+<h1>Admin > Devices</h1>
+
+<button class="btn btn-secondary" @onclick="async _ => await RefreshData()">Refresh</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">MAC</th>
+            <th scope="col">Detected IP Address</th>
+            <th scope="col">Authorized</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (Device device in Devices)
+        {
+            <tr>
+                <td>@device.DeviceMac</td>
+                <td>@device.DetectedDeviceIpAddress</td>
+                <td>@(device.Authorized ? (device.AuthorizedUntil == null ? "Forever" : (device.AuthorizedUntil <= DateTime.UtcNow ? $"Expired on {device.AuthorizedUntil}" : $"Until {device.AuthorizedUntil}")) : "Not Authorized")</td>
+                <td>
+                    <button class="btn btn-danger" @onclick="async _ => await RemoveDevice(device)">Remove</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    public List<Device> Devices { get; set; } = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        Devices = await db.Devices
+            .AsNoTracking()
+            .ToListAsync();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveDevice(Device device)
+    {       
+        await db.Devices
+            .Where(x => x.Id == device.Id)
+            .ExecuteDeleteAsync();
+
+        _ = await disconnector.Disconnect(device);
+
+        await RefreshData();
+    }
+}

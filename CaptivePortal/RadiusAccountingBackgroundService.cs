@@ -78,7 +78,7 @@ namespace CaptivePortal
                         if (statusType == AccountingStatusTypeAttribute.StatusTypes.START ||
                             statusType == AccountingStatusTypeAttribute.StatusTypes.INTERIM_UPDATE)
                         {
-                            device.DeviceIpAddress = incoming.GetAttribute<FramedIpAddressAttribute>()?.Address.ToString();
+                            device.DetectedDeviceIpAddress = incoming.GetAttribute<FramedIpAddressAttribute>()?.Address.ToString();
                             device.NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>()?.Address.ToString();
                             device.NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>()?.Value;
                             device.CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>()?.Value;

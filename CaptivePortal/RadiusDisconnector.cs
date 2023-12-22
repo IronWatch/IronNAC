@@ -23,23 +23,25 @@ namespace CaptivePortal
             this.db = db;
         }
 
-        public async Task<bool> Disconnect(string mac, CancellationToken cancellationToken = default)
-        {
-            Device? device = await db.Devices
-                .AsNoTracking()
-                .Where(x => x.DeviceMac == mac)
-                .FirstOrDefaultAsync(cancellationToken);
+        public Task<bool> Disconnect(Device device, CancellationToken cancellationToken = default)
+            => Disconnect(device.NasIpAddress, device.NasIdentifier, device.CallingStationId, device.AccountingSessionId, cancellationToken);
 
-            if (device is null ||
-                device.CallingStationId is null ||
-                device.NasIpAddress is null ||
-                device.NasIdentifier is null ||
-                device.AccountingSessionId is null)
+        public async Task<bool> Disconnect(
+            string? nasIpAddress,
+            string? nasIdentifier,
+            string? callingStationId,
+            string? accountingSessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (nasIpAddress is null ||
+                nasIdentifier is null ||
+                callingStationId is null ||
+                accountingSessionId is null)
             {
                 return false;
             }
-
-            if (!IPAddress.TryParse(device.NasIpAddress, out IPAddress? nasIpAddress))
+            
+            if (!IPAddress.TryParse(nasIpAddress, out IPAddress? nasIpAddressAddress))
             {
                 return false;
             }
@@ -48,16 +50,17 @@ namespace CaptivePortal
                 RadiusCode.DISCONNECT_REQUEST,
                 lastSentIdentifier++,
                 null)
-                .AddAttribute(new CallingStationIdAttribute(device.CallingStationId))
-                .AddAttribute(new NasIpAddressAttribute(nasIpAddress))
-                .AddAttribute(new NasIdentifierAttribute(device.NasIdentifier))
-                .AddAttribute(new AccountingSessionIdAttribute(device.AccountingSessionId));
+                .AddAttribute(new CallingStationIdAttribute(callingStationId))
+                .AddAttribute(new NasIpAddressAttribute(nasIpAddressAddress))
+                .AddAttribute(new NasIdentifierAttribute(nasIdentifier))
+                .AddAttribute(new AccountingSessionIdAttribute(accountingSessionId));
 
             disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
 
             await udpClient.SendAsync(
                 disconnect.ToBytes(), 
-                new IPEndPoint(nasIpAddress, 3799));
+                new IPEndPoint(nasIpAddressAddress, 3799),
+                cancellationToken);
 
             return true;
         }

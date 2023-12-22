@@ -13,7 +13,7 @@ namespace CaptivePortal.Database.Entities
         public int NetworkId { get; set; }
         public required Network Network { get; set; }
 
-        public required string DeviceAddress { get; set; }
+        public required string AssignedDeviceAddress { get; set; }
         public bool ManuallyAssignedAddress { get; set; }
 
         public DateTime? LeaseIssuedAt { get; set; }

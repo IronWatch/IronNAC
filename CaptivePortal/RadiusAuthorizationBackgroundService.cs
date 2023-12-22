@@ -83,10 +83,9 @@ namespace CaptivePortal
                             await db.SaveChangesAsync(cancellationToken);
                         }
 
-                        if (device.AuthorizedUntil is null ||
+                        if (!device.Authorized ||
                             device.AuthorizedUntil <= DateTime.UtcNow)
                         {
-                            Console.WriteLine("REGISTRATION");
                             await udpClient.SendAsync(RadiusPacket
                                 .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
                                 .AddAttribute(new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN))
@@ -100,7 +99,6 @@ namespace CaptivePortal
                             break;
                         }
 
-                        Console.WriteLine("AUTHORIZED");
                         await udpClient.SendAsync(RadiusPacket
                             .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
                             .AddAttribute(new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN))

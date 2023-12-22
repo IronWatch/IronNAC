@@ -5,6 +5,7 @@
         public int Id { get; set; }
         public required string Name { get; set; }
         public required string Email { get; set; }
+        public required string Hash { get; set; }
 
         public List<Device> Devices { get; set; } = new();
     }
