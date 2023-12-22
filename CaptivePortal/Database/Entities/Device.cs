@@ -7,6 +7,9 @@
         public int? PersonId { get; set; }
         public Person? Person { get; set; }
 
+        public int? DeviceNetworkId { get; set; }
+        public DeviceNetwork? DeviceNetwork { get; set; }
+
         public DateTime? AuthorizedUntil { get; set; }
 
         public string? DeviceMac { get; set; }
