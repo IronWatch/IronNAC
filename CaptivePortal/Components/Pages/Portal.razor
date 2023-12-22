@@ -1,9 +1,13 @@
 ﻿@page "/portal"
-@using CaptivePortal.Data
 @using System.Net
+@using CaptivePortal.Database
+@using CaptivePortal.Database.Entities
+@using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
+@implements IDisposable
 @inject NavigationManager navigationManager
-@inject DatabaseService databaseService
+@inject IServiceProvider serviceProvider
+@inject CaptivePortalDbContext db
 @inject RadiusDisconnector disconnector
 @inject IHttpContextAccessor httpContextAccessor
 
@@ -11,77 +15,87 @@
 
 <h1>Wifi Captive Portal</h1>
 
-@if (ClientIp is null)
+@if (DetectedIPAddress is null)
 {
     <p>Your device&apos;s IP address could not be determined. Please contact the IT Support Team</p>
 }
-else if (ClientMac is null)
+else if (Device?.DeviceMac is null)
 {
     <p>Please wait while your device MAC address is detected. This should only take a moment.</p>
 }
-else if (Client?.AuthorizedUntil is null)
+else if (Device?.AuthorizedUntil is null)
 {
-    <p>You may now connect to the Wifi Network</p>
-    <p>Once you press connect, we will attempt to automatically disconnect and reconnect your device. If for some reason this process fails, or you have disabled automatic reconnection on your device, you will need to manually re-connect to this Wifi Network.</p>
-    <button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(ClientMac == null)">Connect</button>
+    <p>Please Login</p>
+    <button class="btn btn-primary" @onclick="LoginAsync" disabled="@(Device?.DeviceMac == null)">Login</button>
 }
-else if (RegistrationClientIp == ClientIp.ToString())
+else if (!DisconnectIssued)
 {
-    <p>Your access to the network is being enabled. You will be disconnected from the wifi network and we will attempt to automatically reconnect your device. If for some reason this process fails, or you have disabled automatic reconnection on your device, you will need to manually re-connect to this Wifi Network.</p>
+    <p>You are logged in. This device is not registered.</p>
+    <p>You will be disconnected from the wifi network and we will attempt to automatically reconnect your device. If for some reason this process fails, or you have disabled automatic reconnection on your device, you will need to manually re-connect to this Wifi Network.</p>
+    <button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(Device?.DeviceMac == null)">Register this Device</button>
 }
-
-<p>Client IP Address: @ClientIp</p>
-<p>Client MAC Address: @ClientMac</p>
-<p>Authorized Until: @Client?.AuthorizedUntil</p>
-
-<button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(ClientMac == null)">Connect</button>
+else
+{
+    <p>Your access is enabled. Feel free to close this page and continue browsing!</p>
+}
 
 @code {
 
-    public string? RegistrationClientIp { get; set; }
-    public IPAddress? ClientIp { get; set; }
-    public string? ClientMac { get; set; }
-    public Session? Session { get; set; }
-    public Client? Client { get; set; }
+    [SupplyParameterFromQuery(Name="redirect")]
+    public string? Redirect { get; set; }
+    public bool DisconnectIssued { get; set; }
 
-    protected override void OnInitialized()
+    public IPAddress? DetectedIPAddress { get; set; }
+    public Device? Device { get; set; }
+
+    private Timer? timer;
+
+    protected override void OnAfterRender(bool firstRender)
     {
-        CheckDatabase();
+        if (!firstRender) return;
+
+        timer = new(async _ =>
+        {
+            await CheckDatabaseAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
     }
 
-    private void CheckDatabase()
+    public void Dispose()
     {
-        ClientIp = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
+        timer?.Dispose();
+    }
 
-        KeyValuePair<string, Session>? sessionKvp = databaseService.Sessions
-            .Where(x =>
-                x.Value.FramedIpAddress != null &&
-                x.Value.FramedIpAddress.Address.Equals(ClientIp))
-            .FirstOrDefault();
+    private async Task CheckDatabaseAsync()
+    {
+        using IServiceScope scope = serviceProvider.CreateScope();
+        CaptivePortalDbContext scopedDb = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
 
-        ClientMac = sessionKvp?.Key;
-        Session = sessionKvp?.Value;
+        DetectedIPAddress = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
+        if (DetectedIPAddress is null) return;
 
-        if (ClientMac is null) return;
+        Device = await scopedDb.Devices
+            .AsNoTracking()
+            .Where(x => x.DeviceIpAddress == DetectedIPAddress.ToString())
+            .FirstOrDefaultAsync();
+    }
 
-        databaseService.Clients.TryGetValue(ClientMac, out Client? client);
-        Client = client;
+    private async Task LoginAsync()
+    {
+        if (Device is null) return;
 
-        if (client?.AuthorizedUntil is null)
-        {
-            RegistrationClientIp = ClientIp?.ToString();
-        }
+        Device.AuthorizedUntil
+            = DateTime.UtcNow.AddSeconds(60);
+        db.Update(Device);
+        await db.SaveChangesAsync();
     }
 
     private async Task ConnectAsync()
     {
-        if (ClientMac is null || Client is null) return;
+        if (Device?.DeviceMac is null) return;
 
-        Client.AuthorizedUntil
-            = DateTime.UtcNow.AddMinutes(480);
+        timer?.Dispose();
 
-        await Task.Delay(1000);
-
-        await disconnector.Disconnect(ClientMac);
+        DisconnectIssued = await disconnector.Disconnect(Device.DeviceMac);
     }
 }

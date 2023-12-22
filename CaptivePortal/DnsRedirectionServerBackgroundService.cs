@@ -4,8 +4,6 @@ using System.Net;
 using System.Text;
 using Radius;
 using Radius.RadiusAttributes;
-using CaptivePortal.Data;
-using System.Collections.Concurrent;
 using DNS.ResourceRecords;
 using DNS;
 

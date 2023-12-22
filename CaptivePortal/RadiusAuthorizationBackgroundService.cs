@@ -4,8 +4,9 @@ using System.Net;
 using System.Text;
 using Radius;
 using Radius.RadiusAttributes;
-using CaptivePortal.Data;
-using System.Collections.Concurrent;
+using CaptivePortal.Database;
+using Microsoft.EntityFrameworkCore;
+using CaptivePortal.Database.Entities;
 
 namespace CaptivePortal
 {
@@ -13,26 +14,27 @@ namespace CaptivePortal
     {
         private UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 1812));
         private byte[] secret = Encoding.ASCII.GetBytes("thesecret");
-        private byte lastSeenIdentifier = 0;
 
         private string registrationVLAN = "255";
         private string authorizedVLAN = "254";
 
         private readonly RadiusAttributeParser parser;
-        private readonly DatabaseService databaseService;
+        private readonly IServiceProvider serviceProvider;
 
         public RadiusAuthorizationBackgroundService(
-            RadiusAttributeParserService parserService, 
-            DatabaseService databaseService)
+            RadiusAttributeParserService parserService,
+            IServiceProvider serviceProvider)
         {
             parser = parserService.Parser;
-            this.databaseService = databaseService;
+            this.serviceProvider = serviceProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                using IServiceScope scope = serviceProvider.CreateScope();
+                
                 UdpReceiveResult udpReceiveResult = await udpClient.ReceiveAsync(cancellationToken);
                 if (cancellationToken.IsCancellationRequested) break;
 
@@ -46,8 +48,6 @@ namespace CaptivePortal
                     Console.WriteLine(radEx.Message);
                     continue;
                 }
-
-                lastSeenIdentifier = incoming.Identifier;
 
                 switch (incoming.Code)
                 {
@@ -66,15 +66,25 @@ namespace CaptivePortal
                             break;
                         }
 
-                        _ = databaseService.Clients
-                            .TryGetValue(mac, out Client? client);
-                        if (client is null)
+                        CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+
+                        Device? device = await db.Devices
+                            .Where(x => x.DeviceMac == mac)
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                        if (device is null)
                         {
-                            client = new Client();
-                            _ = databaseService.Clients.TryAdd(mac, client);
+                            device = new Device()
+                            {
+                                DeviceMac = mac
+                            };
+
+                            db.Add(device);
+                            await db.SaveChangesAsync(cancellationToken);
                         }
 
-                        if (client.AuthorizedUntil is null)
+                        if (device.AuthorizedUntil is null ||
+                            device.AuthorizedUntil <= DateTime.UtcNow)
                         {
                             Console.WriteLine("REGISTRATION");
                             await udpClient.SendAsync(RadiusPacket

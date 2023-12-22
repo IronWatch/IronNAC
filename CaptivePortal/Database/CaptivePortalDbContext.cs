@@ -6,17 +6,17 @@ namespace CaptivePortal.Database
     public class CaptivePortalDbContext : DbContext
     {
         public DbSet<Person> Persons { get; set; }
+        public DbSet<Device> Devices { get; set; }
 
-        public string DatabaseFilePath { get; private set; }
-
-        public CaptivePortalDbContext()
+        private readonly IConfiguration configuration;
+        public CaptivePortalDbContext(IConfiguration configuration)
         {
-            var folder = Environment.SpecialFolder.LocalApplicationData;
-            var path = Environment.GetFolderPath(folder);
-            DatabaseFilePath = Path.Join(path, "captive-portal.db");
+            this.configuration = configuration;
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseSqlite($"Data Source={DatabaseFilePath}");
+        {
+            optionsBuilder.UseSqlite(configuration.GetConnectionString("Database"));
+        }
     }
 }

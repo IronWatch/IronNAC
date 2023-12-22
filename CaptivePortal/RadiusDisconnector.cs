@@ -2,7 +2,10 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Text;
-using CaptivePortal.Data;
+using CaptivePortal.Database;
+using CaptivePortal.Database.Entities;
+using Microsoft.EntityFrameworkCore;
+using Radius.RadiusAttributes;
 
 namespace CaptivePortal
 {
@@ -12,22 +15,31 @@ namespace CaptivePortal
         private byte[] secret = Encoding.ASCII.GetBytes("thesecret");
         private byte lastSentIdentifier = 0;
 
-        private readonly DatabaseService databaseService;
+        private readonly CaptivePortalDbContext db;
 
         public RadiusDisconnector(
-            DatabaseService databaseService)
+            CaptivePortalDbContext db)
         {
-            this.databaseService = databaseService;
+            this.db = db;
         }
 
-        public async Task<bool> Disconnect(string mac)
+        public async Task<bool> Disconnect(string mac, CancellationToken cancellationToken = default)
         {
-            if (!databaseService.Sessions.TryGetValue(mac, out Session? session) ||
-                session is null ||
-                session.CallingStationId is null ||
-                session.NasIpAddress is null ||
-                session.NasIdentifier is null ||
-                session.AccountingSessionId is null)
+            Device? device = await db.Devices
+                .AsNoTracking()
+                .Where(x => x.DeviceMac == mac)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (device is null ||
+                device.CallingStationId is null ||
+                device.NasIpAddress is null ||
+                device.NasIdentifier is null ||
+                device.AccountingSessionId is null)
+            {
+                return false;
+            }
+
+            if (!IPAddress.TryParse(device.NasIpAddress, out IPAddress? nasIpAddress))
             {
                 return false;
             }
@@ -36,15 +48,16 @@ namespace CaptivePortal
                 RadiusCode.DISCONNECT_REQUEST,
                 lastSentIdentifier++,
                 null)
-                .AddAttribute(session.CallingStationId)
-                .AddAttribute(session.NasIpAddress)
-                .AddAttribute(session.NasIdentifier)
-                .AddAttribute(session.AccountingSessionId);
+                .AddAttribute(new CallingStationIdAttribute(device.CallingStationId))
+                .AddAttribute(new NasIpAddressAttribute(nasIpAddress))
+                .AddAttribute(new NasIdentifierAttribute(device.NasIdentifier))
+                .AddAttribute(new AccountingSessionIdAttribute(device.AccountingSessionId));
+
             disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
 
             await udpClient.SendAsync(
                 disconnect.ToBytes(), 
-                new IPEndPoint(session.NasIpAddress.Address, 3799));
+                new IPEndPoint(nasIpAddress, 3799));
 
             return true;
         }

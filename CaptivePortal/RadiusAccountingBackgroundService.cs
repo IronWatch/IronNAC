@@ -4,8 +4,9 @@ using System.Net;
 using System.Text;
 using Radius;
 using Radius.RadiusAttributes;
-using CaptivePortal.Data;
-using System.Collections.Concurrent;
+using CaptivePortal.Database;
+using CaptivePortal.Database.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace CaptivePortal
 {
@@ -16,20 +17,22 @@ namespace CaptivePortal
         private byte lastSeenIdentifier = 0;
 
         private readonly RadiusAttributeParser parser;
-        private readonly DatabaseService databaseService;
+        private readonly IServiceProvider serviceProvider;
 
         public RadiusAccountingBackgroundService(
-            RadiusAttributeParserService parserService, 
-            DatabaseService databaseService)
+            RadiusAttributeParserService parserService,
+            IServiceProvider serviceProvider)
         {
             parser = parserService.Parser;
-            this.databaseService = databaseService;
+            this.serviceProvider = serviceProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                using IServiceScope scope = serviceProvider.CreateScope();
+                        
                 UdpReceiveResult udpReceiveResult = await udpClient.ReceiveAsync(cancellationToken);
                 if (cancellationToken.IsCancellationRequested) break;
 
@@ -65,33 +68,24 @@ namespace CaptivePortal
                         AccountingStatusTypeAttribute.StatusTypes? statusType = incoming.GetAttribute<AccountingStatusTypeAttribute>()?.StatusType;
                         if (statusType is null) break;
 
-                        if (statusType == AccountingStatusTypeAttribute.StatusTypes.STOP)
+                        CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+
+                        Device? device = await db.Devices
+                            .Where(x => x.DeviceMac == mac)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (device is null) break;
+
+                        if (statusType == AccountingStatusTypeAttribute.StatusTypes.START ||
+                            statusType == AccountingStatusTypeAttribute.StatusTypes.INTERIM_UPDATE)
                         {
-                            databaseService.Sessions.TryRemove(mac, out _);
-                            break;
+                            device.DeviceIpAddress = incoming.GetAttribute<FramedIpAddressAttribute>()?.Address.ToString();
+                            device.NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>()?.Address.ToString();
+                            device.NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>()?.Value;
+                            device.CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>()?.Value;
+                            device.AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>()?.Value;
                         }
 
-                        if (statusType == AccountingStatusTypeAttribute.StatusTypes.START)
-                        {
-                            databaseService.Sessions.TryAdd(mac, new Session()
-                            {
-                                FramedIpAddress = incoming.GetAttribute<FramedIpAddressAttribute>(), // usually not here
-                                NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>(),
-                                NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>(),
-                                CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>(),
-                                AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>()
-                            });
-                        }
-
-                        if (statusType == AccountingStatusTypeAttribute.StatusTypes.INTERIM_UPDATE &&
-                            databaseService.Sessions.ContainsKey(mac))
-                        {
-                            databaseService.Sessions[mac].FramedIpAddress = incoming.GetAttribute<FramedIpAddressAttribute>();
-                            databaseService.Sessions[mac].NasIpAddress = incoming.GetAttribute<NasIpAddressAttribute>();
-                            databaseService.Sessions[mac].NasIdentifier = incoming.GetAttribute<NasIdentifierAttribute>();
-                            databaseService.Sessions[mac].CallingStationId = incoming.GetAttribute<CallingStationIdAttribute>();
-                            databaseService.Sessions[mac].AccountingSessionId = incoming.GetAttribute<AccountingSessionIdAttribute>();
-                        }
+                        await db.SaveChangesAsync(cancellationToken);
 
                         break;
 
