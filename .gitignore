@@ -362,3 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /CaptivePortal/app.db
+/CaptivePortal/app.db-shm
+/CaptivePortal/app.db-wal
