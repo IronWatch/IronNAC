@@ -8,10 +8,20 @@ namespace CaptivePortal.Database.Entities
 
         [ForeignKey(nameof(Device))]
         public int DeviceId { get; set; }
-        public required Device Device { get; set; }
+        private Device? _device;
+        public Device Device
+        {
+            set => _device = value;
+            get => _device ?? throw new InvalidOperationException();
+        }
 
         public int NetworkId { get; set; }
-        public required Network Network { get; set; }
+        private Network? _network;
+        public Network Network
+        {
+            set => _network = value;
+            get => _network ?? throw new InvalidOperationException();
+        }
 
         public required string AssignedDeviceAddress { get; set; }
         public bool ManuallyAssignedAddress { get; set; }

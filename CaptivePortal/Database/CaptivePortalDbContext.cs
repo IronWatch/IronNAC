@@ -5,8 +5,11 @@ namespace CaptivePortal.Database
 {
     public class CaptivePortalDbContext : DbContext
     {
-        public DbSet<Person> Persons { get; set; }
+        public DbSet<User> Users { get; set; }
         public DbSet<Device> Devices { get; set; }
+        public DbSet<Network> Networks { get; set; }
+        public DbSet<DeviceNetwork> DeviceNetworks { get; set; }
+        public DbSet<UserSession> UserSessions { get; set; }
 
         private readonly IConfiguration configuration;
         public CaptivePortalDbContext(IConfiguration configuration)

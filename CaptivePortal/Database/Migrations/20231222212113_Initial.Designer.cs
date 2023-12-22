@@ -3,6 +3,7 @@ using System;
 using CaptivePortal.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(CaptivePortalDbContext))]
-    partial class CaptivePortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231222212113_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -126,9 +129,6 @@ namespace CaptivePortal.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("ChangePasswordNextLogin")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -150,31 +150,6 @@ namespace CaptivePortal.Database.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("CaptivePortal.Database.Entities.UserSession", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("RefreshToken")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("RefreshTokenExpiresAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("RefreshTokenIssuedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserSessions");
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
@@ -205,17 +180,6 @@ namespace CaptivePortal.Database.Migrations
                     b.Navigation("Network");
                 });
 
-            modelBuilder.Entity("CaptivePortal.Database.Entities.UserSession", b =>
-                {
-                    b.HasOne("CaptivePortal.Database.Entities.User", "User")
-                        .WithMany("UserSessions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
                 {
                     b.Navigation("DeviceNetwork");
@@ -229,8 +193,6 @@ namespace CaptivePortal.Database.Migrations
             modelBuilder.Entity("CaptivePortal.Database.Entities.User", b =>
                 {
                     b.Navigation("Devices");
-
-                    b.Navigation("UserSessions");
                 });
 #pragma warning restore 612, 618
         }

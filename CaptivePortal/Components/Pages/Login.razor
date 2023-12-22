@@ -1,0 +1,74 @@
+﻿@page "/login"
+@using CaptivePortal.Models
+@using CaptivePortal.Services
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@rendermode InteractiveServer
+@inject WebAuthenticationService webAuthService
+@inject ProtectedLocalStorage protectedLocalStorage
+@inject NavigationManager navigationManager
+
+<PageTitle>Login</PageTitle>
+
+<h1>Login</h1>
+
+<label>
+    Email Address:
+    <input type="email" @bind="Email" />
+</label>         <label>
+    Password:
+    <input type="password" @bind="Password" />
+</label>
+@if (ValidLogin == false)
+{
+    <p>Incorrect Login Information!</p>
+}
+<button class="btn btn-primary" @onclick="async _ => await TryLogin()">Login</button>
+
+@code {
+    public string? Email { get; set; }
+    public string? Password { get; set; }
+    public bool? ValidLogin { get; set; }
+
+    public string? Redirect { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        AccessToken? accessToken = await webAuthService.WebCheckLoggedInAsync(protectedLocalStorage);
+
+        if (accessToken is not null)
+        {
+            if (Redirect is not null)
+            {
+                navigationManager.NavigateTo(Redirect);
+            }
+            else
+            {
+                navigationManager.NavigateTo("/");
+            }
+        }
+    }
+
+    private async Task TryLogin()
+    {
+        AccessToken? accessToken = await webAuthService.WebLoginAsync(protectedLocalStorage, Email, Password);
+
+        if (accessToken is not null)
+        {
+            ValidLogin = true;
+            if (Redirect is not null)
+            {
+                navigationManager.NavigateTo(Redirect);
+            }
+            else
+            {
+                navigationManager.NavigateTo("/");
+            }
+        }
+        else
+        {
+            ValidLogin = false;
+        }
+    }
+}

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(CaptivePortalDbContext))]
-    [Migration("20231222192829_IpAddressChanges")]
-    partial class IpAddressChanges
+    [Migration("20231222221233_UserSessions")]
+    partial class UserSessions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -53,12 +53,12 @@ namespace CaptivePortal.Database.Migrations
                     b.Property<string>("NasIpAddress")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("PersonId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PersonId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Devices");
                 });
@@ -95,7 +95,7 @@ namespace CaptivePortal.Database.Migrations
 
                     b.HasIndex("NetworkId");
 
-                    b.ToTable("DeviceNetwork");
+                    b.ToTable("DeviceNetworks");
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Network", b =>
@@ -120,18 +120,31 @@ namespace CaptivePortal.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Network");
+                    b.ToTable("Networks");
                 });
 
-            modelBuilder.Entity("CaptivePortal.Database.Entities.Person", b =>
+            modelBuilder.Entity("CaptivePortal.Database.Entities.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("ChangePasswordNextLogin")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsStaff")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -139,16 +152,41 @@ namespace CaptivePortal.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Persons");
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("CaptivePortal.Database.Entities.UserSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RefreshToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RefreshTokenExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RefreshTokenIssuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserSessions");
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
                 {
-                    b.HasOne("CaptivePortal.Database.Entities.Person", "Person")
+                    b.HasOne("CaptivePortal.Database.Entities.User", "User")
                         .WithMany("Devices")
-                        .HasForeignKey("PersonId");
+                        .HasForeignKey("UserId");
 
-                    b.Navigation("Person");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.DeviceNetwork", b =>
@@ -170,6 +208,17 @@ namespace CaptivePortal.Database.Migrations
                     b.Navigation("Network");
                 });
 
+            modelBuilder.Entity("CaptivePortal.Database.Entities.UserSession", b =>
+                {
+                    b.HasOne("CaptivePortal.Database.Entities.User", "User")
+                        .WithMany("UserSessions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
                 {
                     b.Navigation("DeviceNetwork");
@@ -180,9 +229,11 @@ namespace CaptivePortal.Database.Migrations
                     b.Navigation("DeviceNetworks");
                 });
 
-            modelBuilder.Entity("CaptivePortal.Database.Entities.Person", b =>
+            modelBuilder.Entity("CaptivePortal.Database.Entities.User", b =>
                 {
                     b.Navigation("Devices");
+
+                    b.Navigation("UserSessions");
                 });
 #pragma warning restore 612, 618
         }

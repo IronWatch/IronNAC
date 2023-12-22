@@ -33,7 +33,25 @@ WebApplication app = builder.Build();
 using (IServiceScope scope = app.Services.CreateScope())
 {
     CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+
+    bool creatingDb = !db.Database.CanConnect();
+
     db.Database.Migrate();
+
+    if (creatingDb)
+    {
+        WebAuthenticationService webAuthService = scope.ServiceProvider.GetRequiredService<WebAuthenticationService>();
+
+        db.Users.Add(new CaptivePortal.Database.Entities.User()
+        {
+            Name = "Default Administrator",
+            Email = "admin@localhost",
+            Hash = webAuthService.GetHash("password"),
+            ChangePasswordNextLogin = true
+        });
+
+        db.SaveChanges();
+    }
 }
 
 List<string> hostWhitelist = [

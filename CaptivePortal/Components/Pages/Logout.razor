@@ -1,0 +1,21 @@
+﻿@page "/logout"
+@using CaptivePortal.Models
+@using CaptivePortal.Services
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@rendermode InteractiveServer
+@inject WebAuthenticationService webAuthService
+@inject ProtectedLocalStorage protectedLocalStorage
+@inject NavigationManager navigationManager
+
+<PageTitle>Login</PageTitle>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await webAuthService.WebLogoutAsync(protectedLocalStorage);
+
+        navigationManager.NavigateTo("/");
+    }
+}
