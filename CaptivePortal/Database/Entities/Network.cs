@@ -8,6 +8,6 @@
         public int Cidr { get; set; }
         public int Vlan { get; set; }
 
-        public List<DeviceNetwork> DeviceNetworks { get; set; }
+        public List<DeviceNetwork> DeviceNetworks { get; set; } = new();
     }
 }

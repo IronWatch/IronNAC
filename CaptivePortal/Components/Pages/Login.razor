@@ -32,7 +32,8 @@
                     </div>
                 }
 
-                <button class="d-block w-100 btn btn-primary btn-lg mt-2">Login</button>
+                <button class="d-block w-100 btn btn-primary btn-lg mt-2 mb-3">Login</button>
+                <button class="d-block w-100 btn btn-outline-info btn" type="button" @onclick="CancelLogin">Cancel Login</button>
             </form>
         }
         else if (AccessToken is not null && ChangePassword)
@@ -79,7 +80,11 @@
     public bool DidFocusChangePassword { get; set; }
     public string? ChangePasswordFailure { get; set; }
 
+    [SupplyParameterFromQuery(Name = "redirect")]
     public string? Redirect { get; set; }
+
+    [SupplyParameterFromQuery(Name = "return")]
+    public string? Return { get; set; }
 
     private ElementReference emailInputReference;
     private ElementReference newPasswordReference;
@@ -167,6 +172,18 @@
         if (Redirect is not null)
         {
             navigationManager.NavigateTo(Redirect);
+        }
+        else
+        {
+            navigationManager.NavigateTo("/");
+        }
+    }
+
+    public void CancelLogin()
+    {
+        if (Return is not null)
+        {
+            navigationManager.NavigateTo(Return);
         }
         else
         {

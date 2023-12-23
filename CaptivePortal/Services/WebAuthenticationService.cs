@@ -86,10 +86,10 @@ namespace CaptivePortal.Services
         public async Task<WebLoginResult> WebLoginAsync(ProtectedLocalStorage protectedLocalStorage, string? email, string? password, CancellationToken cancellationToken = default)
         {
             WebLoginResult result = new();
-            email = email.ToLowerInvariant();
 
             result.Success = await ValidateLoginAsync(email, password);
             if (!result.Success) return result;
+            email = email?.ToLowerInvariant();
 
             User? user = await db.Users
                 .AsNoTracking()

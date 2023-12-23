@@ -1,11 +1,17 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@using CaptivePortal.Database
+@using CaptivePortal.Database.Entities
 @using CaptivePortal.Models
 @using CaptivePortal.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using System.Net
+@using Microsoft.EntityFrameworkCore
 @inject NavigationManager nav
 @inject WebAuthenticationService webAuth
 @inject ProtectedLocalStorage protectedLocalStorage
+@inject IHttpContextAccessor httpContextAccessor
+@inject CaptivePortalDbContext db
 
 <PageTitle>IronNAC</PageTitle>
 
@@ -16,20 +22,6 @@
 
         <hr/>
 
-        <h5>Your IP Address:</h5>
-        <div class="w-100 d-flex mb-3">
-            <input class="flex-grow-1 me-2 fs-4" type="text" value="127.0.0.1" disabled/>
-            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-        </div>
-
-        <h5>Your MAC Address:</h5>
-        <div class="w-100 d-flex">
-            <input class="flex-grow-1 me-2 fs-4" type="text" value="AA:BB:CC:DD:EE:FF" disabled />
-            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-        </div>
-
-        <hr/>
-
         @if (AccessToken is null)
         {
             <button class="btn btn-primary btn-lg" @onclick="@(_ => nav.NavigateTo("/login"))">Login</button>
@@ -37,7 +29,7 @@
         else
         {
             <h5 class="text-center">Hello @AccessToken.Name</h5>
-            <button class="btn btn-outline-primary btn-lg mt-1 mb-3" @onclick="@(_ => nav.NavigateTo("/user/account"))">My Account</button>
+            <button class="btn btn-primary btn-lg mt-1 mb-3" @onclick="@(_ => nav.NavigateTo("/user/account"))">My Account</button>
 
             @if (AccessToken.IsStaff)
             {
@@ -46,11 +38,25 @@
 
             @if (AccessToken.IsAdmin)
             {
-                <button class="btn btn-outline-warning btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Admin Portal</button>
+                <button class="btn btn-outline-info btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Admin Portal</button>
             }
 
-            <button class="btn btn-danger btn-lg mt-3" @onclick="@(_ => nav.NavigateTo("/logout"))">Logout</button>
+            <button class="btn btn-outline-warning btn-lg mt-3" @onclick="@(_ => nav.NavigateTo("/logout"))">Logout</button>
         }
+
+        <hr />
+
+        <h5>Your IP Address:</h5>
+        <div class="w-100 d-flex mb-3">
+            <input class="flex-grow-1 me-2 fs-4" type="text" value="@(DetectedIPAddress)" disabled />
+            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+        </div>
+
+        <h5>Your MAC Address:</h5>
+        <div class="w-100 d-flex">
+            <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device?.DeviceMac?.ToUpper())" disabled />
+            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+        </div>
 
         <hr/>
 
@@ -62,11 +68,25 @@
 {
     public AccessToken? AccessToken { get; set; }
 
+    public IPAddress? DetectedIPAddress { get; set; }
+    public Device? Device { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
         AccessToken = await webAuth.WebCheckLoggedInAsync(protectedLocalStorage);
+
+        DetectedIPAddress = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
+        
+        if (DetectedIPAddress is not null)
+        {
+            Device = await db.Devices
+                .AsNoTracking()
+                .Where(x => x.DetectedDeviceIpAddress == DetectedIPAddress.ToString())
+                .FirstOrDefaultAsync();
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 }
