@@ -47,7 +47,9 @@ using (IServiceScope scope = app.Services.CreateScope())
             Name = "Default Administrator",
             Email = "admin@localhost",
             Hash = webAuthService.GetHash("password"),
-            ChangePasswordNextLogin = true
+            ChangePasswordNextLogin = true,
+            IsStaff = true,
+            IsAdmin = true
         });
 
         db.SaveChanges();

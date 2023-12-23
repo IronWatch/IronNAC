@@ -7,37 +7,96 @@
 @inject ProtectedLocalStorage protectedLocalStorage
 @inject NavigationManager navigationManager
 
-<PageTitle>Login</PageTitle>
+<PageTitle>IronNAC</PageTitle>
 
-<h1>Login</h1>
+<div class="w-100 d-flex justify-content-center p-2">
+    <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
+        <h1 class="text-center">IronNAC</h1>
+        <h3 class="text-center">Network Access Control</h3>
 
-<label>
-    Email Address:
-    <input type="email" @bind="Email" />
-</label>         <label>
-    Password:
-    <input type="password" @bind="Password" />
-</label>
-@if (ValidLogin == false)
-{
-    <p>Incorrect Login Information!</p>
-}
-<button class="btn btn-primary" @onclick="async _ => await TryLogin()">Login</button>
+        <hr/>
+
+        @if (AccessToken is null && !ChangePassword)
+        {
+            <form @onsubmit="@(_ => TryLoginAsync())">
+                <h5>Email Address:</h5>
+                <input class="w-100 me-2 fs-4 mb-3" type="text" @bind="Email" @ref="emailInputReference"/>
+
+                <h5>Password:</h5>
+                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="Password" />
+
+                @if (IncorrectLogin)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        The login information was incorrect!
+                    </div>
+                }
+
+                <button class="d-block w-100 btn btn-primary btn-lg mt-2">Login</button>
+            </form>
+        }
+        else if (AccessToken is not null && ChangePassword)
+        {
+            <div class="alert alert-primary" role="alert">
+                Your password must be changed before you may continue!
+            </div>
+            
+            <form @onsubmit="@(_ => ChangePasswordAsync())">
+                <h5>New Password:</h5>
+                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPassword" @ref="newPasswordReference" />
+
+                <h5>Confirm New Password:</h5>
+                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPasswordConfirm" />
+
+                @if (ChangePasswordFailure is not null)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @ChangePasswordFailure
+                    </div>
+                }
+
+                <button class="d-block w-100 btn btn-primary btn-lg mt-2">Change Password</button>
+            </form>
+        }
+
+        <hr />
+
+        <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+    </div>
+</div>
 
 @code {
     public string? Email { get; set; }
     public string? Password { get; set; }
-    public bool? ValidLogin { get; set; }
+
+    public string? NewPassword { get; set; }
+    public string? NewPasswordConfirm { get; set; }
+
+    public AccessToken? AccessToken { get; set; }
+
+    public bool IncorrectLogin { get; set; }
+    public bool ChangePassword { get; set; }
+    public bool DidFocusChangePassword { get; set; }
+    public string? ChangePasswordFailure { get; set; }
 
     public string? Redirect { get; set; }
 
+    private ElementReference emailInputReference;
+    private ElementReference newPasswordReference;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (ChangePassword && !DidFocusChangePassword)
+        {
+            await newPasswordReference.FocusAsync();
+            DidFocusChangePassword = true;
+        }
+
         if (!firstRender) return;
 
-        AccessToken? accessToken = await webAuthService.WebCheckLoggedInAsync(protectedLocalStorage);
+        AccessToken = await webAuthService.WebCheckLoggedInAsync(protectedLocalStorage);
 
-        if (accessToken is not null)
+        if (AccessToken is not null)
         {
             if (Redirect is not null)
             {
@@ -47,28 +106,71 @@
             {
                 navigationManager.NavigateTo("/");
             }
+            return;
+        }
+
+        await emailInputReference.FocusAsync();
+    }
+
+    private async Task TryLoginAsync()
+    {
+        WebLoginResult loginResult = await webAuthService.WebLoginAsync(protectedLocalStorage, Email, Password);
+        IncorrectLogin = !loginResult.Success;
+        AccessToken = loginResult.AccessToken;
+        ChangePassword = loginResult.ChangePasswordRequired;
+        Password = null;
+
+        if (!IncorrectLogin && !ChangePassword)
+        {
+            if (Redirect is not null)
+            {
+                navigationManager.NavigateTo(Redirect);
+            }
+            else
+            {
+                navigationManager.NavigateTo("/");
+            }
+
+            return;
         }
     }
 
-    private async Task TryLogin()
+    private async Task ChangePasswordAsync()
     {
-        AccessToken? accessToken = await webAuthService.WebLoginAsync(protectedLocalStorage, Email, Password);
-
-        if (accessToken is not null)
+        if (AccessToken is null)
         {
-            ValidLogin = true;
-            if (Redirect is not null)
-            {
-                navigationManager.NavigateTo(Redirect);
-            }
-            else
-            {
-                navigationManager.NavigateTo("/");
-            }
+            // Something went wrong, reload the page
+            navigationManager.Refresh(true);
+            return;
+        }
+
+        if (NewPassword != NewPasswordConfirm)
+        {
+            ChangePasswordFailure = "Passwords do not match!";
+            return;
+        }
+
+        if (!webAuthService.CheckComplexity(NewPassword))
+        {
+            ChangePasswordFailure = "Password does not minimum requirements! Password must be at least 8 characters long!";
+            return;
+        }
+
+        bool status = await webAuthService.SetPasswordAsync(AccessToken.Email, NewPassword);
+
+        if (!status)
+        {
+            ChangePasswordFailure = "Failed to set the new password. Please contact support!";
+            return;
+        }
+
+        if (Redirect is not null)
+        {
+            navigationManager.NavigateTo(Redirect);
         }
         else
         {
-            ValidLogin = false;
+            navigationManager.NavigateTo("/");
         }
     }
 }

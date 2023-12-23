@@ -23,6 +23,7 @@ namespace CaptivePortal.Services
             CancellationToken cancellationToken = default)
         {
             if (email is null || password is null) return false;
+            email = email.ToLowerInvariant();
             
             string? hash = await db.Users
                 .AsNoTracking()
@@ -43,7 +44,8 @@ namespace CaptivePortal.Services
             CancellationToken cancellationToken = default)
         {
             if (email is null || oldPassword is null || newPassword is null) return false;
-            
+            email = email.ToLowerInvariant();
+
             User? user = await db.Users
                 .AsNoTracking()
                 .Where(x => x.Email == email)
@@ -62,6 +64,7 @@ namespace CaptivePortal.Services
             CancellationToken cancellationToken = default)
         {
             if (email is null || password is null) return false;
+            email = email.ToLowerInvariant();
 
             string newHash = GetHash(password);
 
@@ -80,18 +83,21 @@ namespace CaptivePortal.Services
             return Sodium.PasswordHash.ArgonHashString(password, strength);
         }
 
-        public async Task<AccessToken?> WebLoginAsync(ProtectedLocalStorage protectedLocalStorage, string? email, string? password, CancellationToken cancellationToken = default)
+        public async Task<WebLoginResult> WebLoginAsync(ProtectedLocalStorage protectedLocalStorage, string? email, string? password, CancellationToken cancellationToken = default)
         {
-            bool valid = await ValidateLoginAsync(email, password);
-            if (!valid) return null;
+            WebLoginResult result = new();
+            email = email.ToLowerInvariant();
+
+            result.Success = await ValidateLoginAsync(email, password);
+            if (!result.Success) return result;
 
             User? user = await db.Users
                 .AsNoTracking()
                 .Where(x => x.Email == email)
                 .FirstOrDefaultAsync();
-            if (user is null) return null;
+            if (user is null) return result;
 
-            AccessToken accessToken = new()
+            result.AccessToken = new()
             {
                 UserId = user.Id,
                 Name = user.Name,
@@ -108,17 +114,23 @@ namespace CaptivePortal.Services
             UserSession session = new()
             {
                 UserId = user.Id,
-                RefreshToken = accessToken.RefreshToken,
-                RefreshTokenIssuedAt = accessToken.RefreshTokenIssuedAt,
-                RefreshTokenExpiresAt = accessToken.RefreshTokenExpiresAt
+                RefreshToken = result.AccessToken.RefreshToken,
+                RefreshTokenIssuedAt = result.AccessToken.RefreshTokenIssuedAt,
+                RefreshTokenExpiresAt = result.AccessToken.RefreshTokenExpiresAt
             };
 
             db.Add(session);
             await db.SaveChangesAsync(cancellationToken);
 
-            await protectedLocalStorage.SetAsync(nameof(AccessToken), accessToken);
+            await protectedLocalStorage.SetAsync(nameof(AccessToken), result.AccessToken);
 
-            return accessToken;
+            if (user.ChangePasswordNextLogin)
+            {
+                result.ChangePasswordRequired = true;
+                return result;
+            }
+
+            return result;
         }
 
         public async Task<AccessToken?> WebCheckLoggedInAsync(ProtectedLocalStorage protectedLocalStorage, CancellationToken cancellationToken = default)
@@ -183,6 +195,14 @@ namespace CaptivePortal.Services
             await protectedLocalStorage.SetAsync(nameof(AccessToken), newAccessToken);
 
             return newAccessToken;
+        }
+
+        public bool CheckComplexity(string? password)
+        {
+            if (string.IsNullOrWhiteSpace(password)) return false;
+            if (password.Length < 8) return false;
+
+            return true;
         }
     }
 }

@@ -1,7 +1,72 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@using CaptivePortal.Models
+@using CaptivePortal.Services
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject NavigationManager nav
+@inject WebAuthenticationService webAuth
+@inject ProtectedLocalStorage protectedLocalStorage
 
-<PageTitle>Home</PageTitle>
+<PageTitle>IronNAC</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="w-100 d-flex justify-content-center p-2">
+    <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
+        <h1 class="text-center">IronNAC</h1>
+        <h3 class="text-center">Network Access Control</h3>
 
-Welcome to your new app.
+        <hr/>
+
+        <h5>Your IP Address:</h5>
+        <div class="w-100 d-flex mb-3">
+            <input class="flex-grow-1 me-2 fs-4" type="text" value="127.0.0.1" disabled/>
+            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+        </div>
+
+        <h5>Your MAC Address:</h5>
+        <div class="w-100 d-flex">
+            <input class="flex-grow-1 me-2 fs-4" type="text" value="AA:BB:CC:DD:EE:FF" disabled />
+            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+        </div>
+
+        <hr/>
+
+        @if (AccessToken is null)
+        {
+            <button class="btn btn-primary btn-lg" @onclick="@(_ => nav.NavigateTo("/login"))">Login</button>
+        }
+        else
+        {
+            <h5 class="text-center">Hello @AccessToken.Name</h5>
+            <button class="btn btn-outline-primary btn-lg mt-1 mb-3" @onclick="@(_ => nav.NavigateTo("/user/account"))">My Account</button>
+
+            @if (AccessToken.IsStaff)
+            {
+                <button class="btn btn-outline-info btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Staff Portal</button>
+            }
+
+            @if (AccessToken.IsAdmin)
+            {
+                <button class="btn btn-outline-warning btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Admin Portal</button>
+            }
+
+            <button class="btn btn-danger btn-lg mt-3" @onclick="@(_ => nav.NavigateTo("/logout"))">Logout</button>
+        }
+
+        <hr/>
+
+        <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+    </div>
+</div>
+
+@code
+{
+    public AccessToken? AccessToken { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        AccessToken = await webAuth.WebCheckLoggedInAsync(protectedLocalStorage);
+        await InvokeAsync(StateHasChanged);
+    }
+}
