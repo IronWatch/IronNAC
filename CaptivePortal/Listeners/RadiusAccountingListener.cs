@@ -7,10 +7,11 @@ using Radius.RadiusAttributes;
 using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
 using Microsoft.EntityFrameworkCore;
+using CaptivePortal.Services;
 
-namespace CaptivePortal
+namespace CaptivePortal.Listeners
 {
-    public class RadiusAccountingBackgroundService : BackgroundService
+    public class RadiusAccountingListener : BackgroundService
     {
         private UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 1813));
         private byte[] secret = Encoding.ASCII.GetBytes("thesecret");
@@ -19,7 +20,7 @@ namespace CaptivePortal
         private readonly RadiusAttributeParser parser;
         private readonly IServiceProvider serviceProvider;
 
-        public RadiusAccountingBackgroundService(
+        public RadiusAccountingListener(
             RadiusAttributeParserService parserService,
             IServiceProvider serviceProvider)
         {
@@ -32,7 +33,7 @@ namespace CaptivePortal
             while (!cancellationToken.IsCancellationRequested)
             {
                 using IServiceScope scope = serviceProvider.CreateScope();
-                        
+
                 UdpReceiveResult udpReceiveResult = await udpClient.ReceiveAsync(cancellationToken);
                 if (cancellationToken.IsCancellationRequested) break;
 

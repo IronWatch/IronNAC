@@ -1,6 +1,6 @@
 ﻿using Radius;
 
-namespace CaptivePortal
+namespace CaptivePortal.Services
 {
     public class RadiusAttributeParserService
     {

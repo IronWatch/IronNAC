@@ -1,8 +1,8 @@
 using Amazon.Route53;
-using CaptivePortal;
 using CaptivePortal.Components;
 using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
+using CaptivePortal.Listeners;
 using CaptivePortal.Services;
 using LettuceEncrypt;
 using LettuceEncrypt.Acme;
@@ -66,20 +66,20 @@ try
             opts.AdditionalIssuers = stageRootCertContents.ToArray();
         }
     });
-    builder.Services.Replace(new ServiceDescriptor(typeof(IDnsChallengeProvider), typeof(AppDnsChallengeProvider), ServiceLifetime.Singleton));
+    builder.Services.Replace(new ServiceDescriptor(typeof(IDnsChallengeProvider), typeof(PublicDnsChallengeProvider), ServiceLifetime.Singleton));
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
 
     builder.Services.AddHttpContextAccessor();
 
-    builder.Services.AddTransient<RadiusDisconnector>();
+    builder.Services.AddTransient<RadiusDisconnectorService>();
 
     builder.Services.AddSingleton<RadiusAttributeParserService>();
 
-    builder.Services.AddHostedService<RadiusAuthorizationBackgroundService>();
-    builder.Services.AddHostedService<RadiusAccountingBackgroundService>();
-    builder.Services.AddHostedService<DnsRedirectionServerBackgroundService>();
+    builder.Services.AddHostedService<RadiusAuthorizationListener>();
+    builder.Services.AddHostedService<RadiusAccountingListener>();
+    builder.Services.AddHostedService<DnsListener>();
 
     builder.Services.AddDbContext<CaptivePortalDbContext>();
 

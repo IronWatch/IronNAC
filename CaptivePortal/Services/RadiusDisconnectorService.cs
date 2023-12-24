@@ -7,9 +7,9 @@ using CaptivePortal.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Radius.RadiusAttributes;
 
-namespace CaptivePortal
+namespace CaptivePortal.Services
 {
-    public class RadiusDisconnector
+    public class RadiusDisconnectorService
     {
         private UdpClient udpClient = new();
         private byte[] secret = Encoding.ASCII.GetBytes("thesecret");
@@ -17,7 +17,7 @@ namespace CaptivePortal
 
         private readonly CaptivePortalDbContext db;
 
-        public RadiusDisconnector(
+        public RadiusDisconnectorService(
             CaptivePortalDbContext db)
         {
             this.db = db;
@@ -40,7 +40,7 @@ namespace CaptivePortal
             {
                 return false;
             }
-            
+
             if (!IPAddress.TryParse(nasIpAddress, out IPAddress? nasIpAddressAddress))
             {
                 return false;
@@ -58,7 +58,7 @@ namespace CaptivePortal
             disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
 
             await udpClient.SendAsync(
-                disconnect.ToBytes(), 
+                disconnect.ToBytes(),
                 new IPEndPoint(nasIpAddressAddress, 3799),
                 cancellationToken);
 

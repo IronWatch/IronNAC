@@ -7,20 +7,20 @@ using Radius.RadiusAttributes;
 using DNS.ResourceRecords;
 using DNS;
 
-namespace CaptivePortal
+namespace CaptivePortal.Listeners
 {
-    public class DnsRedirectionServerBackgroundService : BackgroundService
+    public class DnsListener : BackgroundService
     {
         private UdpClient udpClient;
         private IPAddress redirectAddress;
 
-        public DnsRedirectionServerBackgroundService(IConfiguration configuration)
+        public DnsListener(IConfiguration configuration)
         {
-            string listenAddress = configuration.GetValue<string>("DnsRedirector:ListenAddress")
-                ?? throw new MissingFieldException("DnsRedirector:ListenAddress");
+            string listenAddress = configuration.GetValue<string>("DnsServer:ListenAddress")
+                ?? throw new MissingFieldException("DnsServer:ListenAddress");
 
-            string redirectAddressString = configuration.GetValue<string>("DnsRedirector:RedirectAddress")
-                ?? throw new MissingFieldException("DnsRedirector:RedirectAddress");
+            string redirectAddressString = configuration.GetValue<string>("DnsServer:RedirectAddress")
+                ?? throw new MissingFieldException("DnsServer:RedirectAddress");
             redirectAddress = IPAddress.Parse(redirectAddressString);
 
             udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 53));

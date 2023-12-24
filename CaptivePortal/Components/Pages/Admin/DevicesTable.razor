@@ -1,10 +1,11 @@
 ﻿@page "/admin/devices"
-@using CaptivePortal.Database
 @using CaptivePortal.Database.Entities
+@using CaptivePortal.Database
+@using CaptivePortal.Services
 @using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
 @inject CaptivePortalDbContext db
-@inject RadiusDisconnector disconnector
+@inject RadiusDisconnectorService disconnector
 
 <PageTitle>Admin > Devices</PageTitle>
 

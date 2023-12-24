@@ -7,23 +7,32 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace CaptivePortal.Services
 {
-    public class AppDnsChallengeProvider : IDnsChallengeProvider
+    public class PublicDnsChallengeProvider : IDnsChallengeProvider
     {
         private readonly AmazonRoute53Client route53;
         private readonly string hostedZoneId;
         private readonly ILogger logger;
 
-        public AppDnsChallengeProvider(IConfiguration configuration, ILogger<AppDnsChallengeProvider> logger)
+        public PublicDnsChallengeProvider(IConfiguration configuration, ILogger<PublicDnsChallengeProvider> logger)
         {
             this.logger = logger;
-            
-            route53 = new(
-                configuration.GetValue<string>("DnsApi:AwsSettings:AccessToken"),
-                configuration.GetValue<string>("DnsApi:AwsSettings:SecretKey"),
-                Amazon.RegionEndpoint.GetBySystemName(configuration.GetValue<string>("DnsApi:AwsSettings:Region")));
 
-            hostedZoneId = configuration.GetValue<string>("DnsApi:AwsSettings:HostedZoneId")
-                ?? throw new MissingFieldException("Configuration field HostedZoneId is unset!");
+            hostedZoneId = configuration.GetValue<string>("PublicDnsApi:AwsSettings:HostedZoneId")
+                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:HostedZoneId");
+
+            string accessToken = configuration.GetValue<string>("PublicDnsApi:AwsSettings:AccessToken")
+                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:AccessToken");
+
+            string secretKey = configuration.GetValue<string>("PublicDnsApi:AwsSettings:SecretKey")
+                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:SecretKey");
+
+            string region = configuration.GetValue<string>("PublicDnsApi:AwsSettings:Region")
+                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:Region");
+
+            route53 = new(
+                accessToken,
+                secretKey,
+                Amazon.RegionEndpoint.GetBySystemName(region));
         }
         
         public async Task<DnsTxtRecordContext> AddTxtRecordAsync(
