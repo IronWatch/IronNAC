@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34316.72
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Radius", "Radius\Radius.csproj", "{D07607C0-A7A4-4527-A525-308A7360E76B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Radius", "src\Radius\Radius.csproj", "{D07607C0-A7A4-4527-A525-308A7360E76B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CaptivePortal", "CaptivePortal\CaptivePortal.csproj", "{9824C250-7C01-45D7-9D8E-FF2ECD1FB327}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CaptivePortal", "src\CaptivePortal\CaptivePortal.csproj", "{9824C250-7C01-45D7-9D8E-FF2ECD1FB327}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DNS", "DNS\DNS.csproj", "{0DEE9B87-F025-46BE-A212-CE227721E42B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DNS", "src\DNS\DNS.csproj", "{0DEE9B87-F025-46BE-A212-CE227721E42B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
