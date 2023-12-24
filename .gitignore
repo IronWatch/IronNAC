@@ -364,5 +364,4 @@ FodyWeavers.xsd
 /CaptivePortal/app.db
 /CaptivePortal/app.db-shm
 /CaptivePortal/app.db-wal
-/CaptivePortal/Certs
 /CaptivePortal/appsettings.json

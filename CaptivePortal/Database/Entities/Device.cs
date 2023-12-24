@@ -10,6 +10,8 @@
         public int? DeviceNetworkId { get; set; }
         public DeviceNetwork? DeviceNetwork { get; set; }
 
+        public string? NickName { get; set; }
+
         public bool Authorized { get; set; }
         public DateTime? AuthorizedUntil { get; set; }
 

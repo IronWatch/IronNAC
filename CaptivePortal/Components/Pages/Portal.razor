@@ -17,96 +17,85 @@
 
 <PageTitle>Captive Portal</PageTitle>
 
-<div class="w-100 d-flex justify-content-center p-2">
-    <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
-        <h1 class="text-center">IronNAC</h1>
-        <h3 class="text-center">Network Access Control</h3>
-
-        <hr />
-
-        @if (Device is null)
+@if (Device is null)
+{
+    <h5 class="text-center">Detecting your Device Connection</h5>
+    <div class="d-flex w-100 justify-content-center mt-3">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!Device.Authorized || Device.AuthorizedUntil <= DateTime.UtcNow)
+    {
+        @if (RegistrationType == "staff")
         {
-            <h5 class="text-center">Detecting your Device Connection</h5>
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        }
-        else
-        {
-            @if (!Device.Authorized || Device.AuthorizedUntil <= DateTime.UtcNow)
+            <h5>Staff / Faculty Device Registration</h5>
+            @if (StaffRegistrationValidLogin != true)
             {
-                @if (RegistrationType == "staff")
+                <label>
+                    Email Address:
+                    <input type="email" @bind="StaffRegistrationEmail" />
+                </label>         <label>
+                    Registration Code:
+                    <input type="password" @bind="StaffRegistrationPassword" />
+                </label>
+                @if (StaffRegistrationValidLogin == false)
                 {
-                    <h5>Staff / Faculty Device Registration</h5>
-                    @if (StaffRegistrationValidLogin != true)
-                    {
-                        <label>
-                            Email Address:
-                            <input type="email" @bind="StaffRegistrationEmail" />
-                        </label>         <label>
-                            Registration Code:
-                            <input type="password" @bind="StaffRegistrationPassword" />
-                        </label>
-                        @if (StaffRegistrationValidLogin == false)
-                        {
-                            <p>Incorrect Login Information!</p>
-                        }
-                        <button class="btn btn-primary" @onclick="StaffLogin">Login</button>
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning" role="alert">
-                            <h3>Heads Up!</h3>
-                            <p>Your device will disconnect from the Wifi network. Most devices will reconnect automatically.</p>
-                            <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
-                        </div>
-                        <button class="btn btn-primary" @onclick="async _ => await RegisterAsync()">Register this Device</button>
-                    }
+                    <p>Incorrect Login Information!</p>
                 }
-                else if (RegistrationType == "guest")
-                {
-                    <h5>Student / Guest Device Registration</h5>
-                    <div class="alert alert-warning" role="alert">
-                        <h3>Heads Up!</h3>
-                        <p>Your device will disconnect from the Wifi network. Most devices will reconnect automatically.</p>
-                        <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
-                    </div>
-                    <button class="btn btn-primary" @onclick="async _ => await RegisterAsync()">Register this Device</button>
-                }
-                else
-                {
-                    <h5 class="text-center">This device is not yet registered</h5>
-                    <button class="btn btn-primary btn-lg mt-2 mb-3" @onclick="@(async _ => await StartRegisterStaffAsync())">I am a Staff / Faculty Member</button>
-                    <button class="btn btn-primary btn-lg" @onclick="StartRegisterGuest">I am a Student / Guest</button>
-                }
+                <button class="btn btn-primary" @onclick="StaffLogin">Login</button>
             }
             else
             {
-                <p>This device is authorized until @Device.AuthorizedUntil</p>
-                <button class="btn btn-primary" @onclick="async _ => await DisconnectDevice(Device)">Reconnect Device</button>
-                <button class="btn btn-danger" @onclick="async _ => await RemoveDevice(Device)">Remove Device Authorization</button>
+                <div class="alert alert-warning" role="alert">
+                    <h3>Heads Up!</h3>
+                    <p>Your device will disconnect from the Wifi network. Most devices will reconnect automatically.</p>
+                    <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
+                </div>
+                <button class="btn btn-primary" @onclick="async _ => await RegisterAsync()">Register this Device</button>
             }
-
-            <hr />
-
-            <h5>Your IP Address:</h5>
-            <div class="w-100 d-flex mb-3">
-                <input class="flex-grow-1 me-2 fs-4" type="text" value="@(DetectedIPAddress)" disabled />
-                <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-            </div>
-
-            <h5>Your MAC Address:</h5>
-            <div class="w-100 d-flex">
-                <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
-                <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-            </div>
         }
+        else if (RegistrationType == "guest")
+        {
+            <h5>Student / Guest Device Registration</h5>
+            <div class="alert alert-warning" role="alert">
+                <h3>Heads Up!</h3>
+                <p>Your device will disconnect from the Wifi network. Most devices will reconnect automatically.</p>
+                <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
+            </div>
+            <button class="btn btn-primary" @onclick="async _ => await RegisterAsync()">Register this Device</button>
+        }
+        else
+        {
+            <h5 class="text-center">This device is not yet registered</h5>
+            <button class="btn btn-primary btn-lg mt-2 mb-3" @onclick="@(async _ => await StartRegisterStaffAsync())">I am a Staff or Faculty Member</button>
+            <button class="btn btn-primary btn-lg" @onclick="StartRegisterGuest">I am a Student or Guest</button>
+        }
+    }
+    else
+    {
+        <p>This device is authorized until @Device.AuthorizedUntil</p>
+        <button class="btn btn-primary" @onclick="async _ => await DisconnectDevice(Device)">Reconnect Device</button>
+        <button class="btn btn-danger" @onclick="async _ => await RemoveDevice(Device)">Remove Device Authorization</button>
+    }
 
-        <hr />
+    <hr />
 
-        <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+    <h5>Your IP Address:</h5>
+    <div class="w-100 d-flex mb-3">
+        <input class="flex-grow-1 me-2 fs-4" type="text" value="@(DetectedIPAddress)" disabled />
+        <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
     </div>
-</div>
+
+    <h5>Your MAC Address:</h5>
+    <div class="w-100 d-flex">
+        <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
+        <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+    </div>
+}
 
 @code {
 
@@ -172,7 +161,7 @@
         if (Device is null) return;
 
         await protectedLocalStorage.SetAsync(nameof(Device), Device);
-        navigationManager.NavigateTo("/portal/staff");
+        navigationManager.NavigateTo("/portal/user");
     }
 
     private void StartRegisterGuest()

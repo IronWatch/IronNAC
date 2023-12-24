@@ -1,81 +1,162 @@
+using Amazon.Route53;
 using CaptivePortal;
 using CaptivePortal.Components;
 using CaptivePortal.Database;
+using CaptivePortal.Database.Entities;
 using CaptivePortal.Services;
+using LettuceEncrypt;
+using LettuceEncrypt.Acme;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Net;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+ILogger logger = LoggerFactory.Create(l => l
+    .SetMinimumLevel(LogLevel.Trace)
+    .AddConsole())
+    .CreateLogger<Program>();
 
-builder.WebHost.UseKestrel()
-    .UseUrls("http://0.0.0.0:80");
-
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddTransient<RadiusDisconnector>();
-
-builder.Services.AddSingleton<RadiusAttributeParserService>();
-
-builder.Services.AddHostedService<RadiusAuthorizationBackgroundService>();
-builder.Services.AddHostedService<RadiusAccountingBackgroundService>();
-builder.Services.AddHostedService<DnsRedirectionServerBackgroundService>();
-
-builder.Services.AddDbContext<CaptivePortalDbContext>();
-
-builder.Services.AddScoped<WebAuthenticationService>();
-
-WebApplication app = builder.Build();
-
-using (IServiceScope scope = app.Services.CreateScope())
+try
 {
-    CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+    WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    bool creatingDb = !db.Database.CanConnect();
+    string hostName = builder.Configuration.GetValue<string>("CaptivePortal:HostName")
+        ?? throw new MissingFieldException("CaptivePortal:HostName");
 
-    db.Database.Migrate();
+    List<string> listenAddresses = builder.Configuration.GetSection("CaptivePortal:ListenAddresses")
+        .Get<string[]>()
+        ?.ToList()
+        ?? throw new MissingFieldException("CaptivePortal:ListenAddresses");
 
-    if (creatingDb)
+    builder.WebHost.UseKestrel(kestrel =>
     {
-        WebAuthenticationService webAuthService = scope.ServiceProvider.GetRequiredService<WebAuthenticationService>();
-
-        db.Users.Add(new CaptivePortal.Database.Entities.User()
+        foreach (string address in listenAddresses)
         {
-            Name = "Default Administrator",
-            Email = "admin@localhost",
-            Hash = webAuthService.GetHash("password"),
-            ChangePasswordNextLogin = true,
-            IsStaff = true,
-            IsAdmin = true
-        });
+            kestrel.Listen(IPAddress.Parse(address), 80);
+            kestrel.Listen(IPAddress.Parse(address), 443, listenOpts =>
+            {
+                listenOpts.UseHttps(https =>
+                {
+                    https.UseLettuceEncrypt(kestrel.ApplicationServices);
+                });
+            });
+        }
+    });
 
-        db.SaveChanges();
-    }
-}
-
-List<string> hostWhitelist = [
-    "10.100.0.100"
-];
-
-app.Use(async (context, next) =>
-{
-    if (!hostWhitelist.Where(x => x.Equals(context.Request.Host.Host, StringComparison.InvariantCultureIgnoreCase)).Any())
+    builder.Services.AddLettuceEncrypt(async opts =>
     {
-        context.Response.StatusCode = 302;
-        context.Response.Headers["Location"] = $"http://10.100.0.100/portal?redirect={context.Request.GetEncodedUrl()}";
-        return;
+        if (opts.UseStagingServer)
+        {
+            logger.LogInformation("Using the Lets Encrypt staging environment. Checking for stage root certs!");
+
+            List<string> stageRootCertUris = builder.Configuration.GetSection("LetsEncrypt:StageRootCerts")
+                .Get<string[]>()
+                ?.ToList()
+                ?? throw new MissingFieldException("LetsEncrypt:StageRootCerts");
+            List<string> stageRootCertContents = new();
+
+            using HttpClient issuersHttpClient = new();
+
+            foreach (string stageRootCertUri in stageRootCertUris)
+            {
+                logger.LogInformation("Downloading Lets Encrypt Staging Certificate: {uri}", stageRootCertUri);
+                stageRootCertContents.Add(await issuersHttpClient.GetStringAsync(stageRootCertUri));
+            }
+
+            opts.AdditionalIssuers = stageRootCertContents.ToArray();
+        }
+    });
+    builder.Services.Replace(new ServiceDescriptor(typeof(IDnsChallengeProvider), typeof(AppDnsChallengeProvider), ServiceLifetime.Singleton));
+
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
+
+    builder.Services.AddHttpContextAccessor();
+
+    builder.Services.AddTransient<RadiusDisconnector>();
+
+    builder.Services.AddSingleton<RadiusAttributeParserService>();
+
+    builder.Services.AddHostedService<RadiusAuthorizationBackgroundService>();
+    builder.Services.AddHostedService<RadiusAccountingBackgroundService>();
+    builder.Services.AddHostedService<DnsRedirectionServerBackgroundService>();
+
+    builder.Services.AddDbContext<CaptivePortalDbContext>();
+
+    builder.Services.AddScoped<WebAuthenticationService>();
+
+    WebApplication app = builder.Build();
+
+    using (IServiceScope scope = app.Services.CreateScope())
+    {
+        CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+
+        bool creatingDb = !db.Database.CanConnect();
+
+        logger.LogInformation("Processing database migrations");
+        db.Database.Migrate();
+
+        if (creatingDb)
+        {
+            logger.LogInformation("Database was just created for the first time. Processing Seed Data");
+
+            WebAuthenticationService webAuthService = scope.ServiceProvider.GetRequiredService<WebAuthenticationService>();
+
+            string initialPassword = "password";
+            User? firstUser = new()
+            {
+                Name = "Default Administrator",
+                Email = "admin@localhost",
+                Hash = webAuthService.GetHash(initialPassword),
+                ChangePasswordNextLogin = true,
+                IsStaff = true,
+                IsAdmin = true
+            };
+            db.Users.Add(firstUser);
+            await db.SaveChangesAsync();
+
+            logger.LogInformation("Created Initial Administrator with\nEmail: {email}\nPassword: {password}", firstUser.Email, initialPassword);
+        }
     }
 
-    await next(context);
-});
+    List<string> hostWhitelist = builder.Configuration
+        .GetSection("CaptivePortal:HostRedirectionBypass")
+        .Get<string[]>()
+        ?.ToList()
+        ?? throw new MissingFieldException("CaptivePortal:HostRedirectionBypass");
 
-app.UseStaticFiles();
-app.UseAntiforgery();
+    app.Use(async (context, next) =>
+    {
+        // If we're not on the host whitelist, redirect to the captive portal
+        if (!hostWhitelist.Where(x => x.Equals(context.Request.Host.Host, StringComparison.InvariantCultureIgnoreCase)).Any())
+        {
+            context.Response.StatusCode = 302;
+            context.Response.Headers["Location"] = $"http://{hostName}/portal?redirect={context.Request.GetEncodedUrl()}";
+            return;
+        }
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+        // If we're accessing via fqdn and not https redirect to https
+        if (context.Request.Scheme == "http" && context.Request.Host.Host == hostName)
+        {
+            string redirectLocation = context.Request.GetEncodedUrl();
+            redirectLocation = $"https{redirectLocation.AsSpan().Slice(4)}";
+            context.Response.StatusCode = 302;
+            context.Response.Headers["Location"] = redirectLocation;
+            return;
+        }
 
-app.Run();
+        await next(context);
+    });
+
+    app.UseStaticFiles();
+    app.UseAntiforgery();
+
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    logger.LogCritical(ex, "A Critical Exception Occured!");
+}

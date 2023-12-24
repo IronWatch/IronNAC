@@ -9,62 +9,49 @@
 
 <PageTitle>IronNAC</PageTitle>
 
-<div class="w-100 d-flex justify-content-center p-2">
-    <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
-        <h1 class="text-center">IronNAC</h1>
-        <h3 class="text-center">Network Access Control</h3>
+@if (AccessToken is null && !ChangePassword)
+{
+    <form @onsubmit="@(_ => TryLoginAsync())">
+        <h5>Email Address:</h5>
+        <input class="w-100 me-2 fs-4 mb-3" type="email" @bind="Email" @ref="emailInputReference" autocapitalize="off" autocomplete="email"/>
 
-        <hr/>
+        <h5>Password:</h5>
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="Password" autocomplete="current-password"/>
 
-        @if (AccessToken is null && !ChangePassword)
+        @if (IncorrectLogin)
         {
-            <form @onsubmit="@(_ => TryLoginAsync())">
-                <h5>Email Address:</h5>
-                <input class="w-100 me-2 fs-4 mb-3" type="text" @bind="Email" @ref="emailInputReference"/>
-
-                <h5>Password:</h5>
-                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="Password" />
-
-                @if (IncorrectLogin)
-                {
-                    <div class="alert alert-danger" role="alert">
-                        The login information was incorrect!
-                    </div>
-                }
-
-                <button class="d-block w-100 btn btn-primary btn-lg mt-2 mb-3">Login</button>
-                <button class="d-block w-100 btn btn-outline-info btn" type="button" @onclick="CancelLogin">Cancel Login</button>
-            </form>
-        }
-        else if (AccessToken is not null && ChangePassword)
-        {
-            <div class="alert alert-primary" role="alert">
-                Your password must be changed before you may continue!
+            <div class="alert alert-danger" role="alert">
+                The login information was incorrect!
             </div>
-            
-            <form @onsubmit="@(_ => ChangePasswordAsync())">
-                <h5>New Password:</h5>
-                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPassword" @ref="newPasswordReference" />
-
-                <h5>Confirm New Password:</h5>
-                <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPasswordConfirm" />
-
-                @if (ChangePasswordFailure is not null)
-                {
-                    <div class="alert alert-danger" role="alert">
-                        @ChangePasswordFailure
-                    </div>
-                }
-
-                <button class="d-block w-100 btn btn-primary btn-lg mt-2">Change Password</button>
-            </form>
         }
 
-        <hr />
-
-        <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+        <button class="d-block w-100 btn btn-primary btn-lg mt-2 mb-3">Login</button>
+        <button class="d-block w-100 btn btn-outline-info btn" type="button" @onclick="CancelLogin">Cancel Login</button>
+    </form>
+}
+else if (AccessToken is not null && ChangePassword)
+{
+    <div class="alert alert-primary" role="alert">
+        Your password must be changed before you may continue!
     </div>
-</div>
+            
+    <form @onsubmit="@(_ => ChangePasswordAsync())">
+        <h5>New Password:</h5>
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPassword" @ref="newPasswordReference" autocomplete="new-password"/>
+
+        <h5>Confirm New Password:</h5>
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPasswordConfirm" autocomplete="new-password" />
+
+        @if (ChangePasswordFailure is not null)
+        {
+            <div class="alert alert-danger" role="alert">
+                @ChangePasswordFailure
+            </div>
+        }
+
+        <button class="d-block w-100 btn btn-primary btn-lg mt-2">Change Password</button>
+    </form>
+}
 
 @code {
     public string? Email { get; set; }

@@ -1,9 +1,35 @@
 ﻿@inherits LayoutComponentBase
+@inject IConfiguration configuration
 
-@Body
+<div class="w-100 d-flex justify-content-center p-2">
+    <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
+        <h1 class="text-center">IronNAC</h1>
+        <h3 class="text-center">Network Access Control</h3>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
+        <hr />
+
+        @Body
+
+        <hr />
+
+        <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+
+        @if (IsUsingStagingCertificates == true)
+        {
+            <div class="alert alert-warning" role="alert">
+                <p>Using the Lets Encrypt Staging Environment. This should only be done while testing and should be disabled for production!</p>
+                <p>The Staging certificates are not trusted by client devices and cannot be used for the Captive Portal API standard that most mobile devices support!</p>
+                <p>Once you have confirmed that your DNS API settings are setup correctly, switch to production certificates!</p>
+            </div>
+        }
+    </div>
 </div>
+
+@code {
+    public bool? IsUsingStagingCertificates { get; set; }
+
+    protected override void OnInitialized()
+    {
+        IsUsingStagingCertificates = configuration.GetValue<bool>("LettuceEncrypt:UseStagingServer");
+    }
+}
