@@ -7,7 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Radius", "src\Radius\Radius
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CaptivePortal", "src\CaptivePortal\CaptivePortal.csproj", "{9824C250-7C01-45D7-9D8E-FF2ECD1FB327}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DNS", "src\DNS\DNS.csproj", "{0DEE9B87-F025-46BE-A212-CE227721E42B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DNS", "src\DNS\DNS.csproj", "{0DEE9B87-F025-46BE-A212-CE227721E42B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DB1247FD-A6EF-4E35-AE76-FD8D3FDB7CDF}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
