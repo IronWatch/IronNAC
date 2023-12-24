@@ -5,8 +5,7 @@
         public int UserId { get; set; }
         public required string Name { get; set; }
         public required string Email { get; set; }
-        public bool IsStaff { get; set; }
-        public bool IsAdmin { get; set; }
+        public PermissionLevel PermissionLevel { get; set; }
         public DateTime IssuedAt { get; set; }
         public DateTime ExpiresAt { get; set; }
         public Guid RefreshToken { get; set; }

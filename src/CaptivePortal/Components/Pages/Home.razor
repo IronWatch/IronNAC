@@ -1,5 +1,4 @@
 ﻿@page "/"
-@rendermode InteractiveServer
 @using CaptivePortal.Database
 @using CaptivePortal.Database.Entities
 @using CaptivePortal.Models
@@ -16,21 +15,21 @@
 <PageTitle>IronNAC</PageTitle>
 
 
-@if (AccessToken is null)
+@if (AuthenticateUser?.AccessToken is null)
 {
     <button class="btn btn-primary btn-lg" @onclick="@(_ => nav.NavigateTo("/login"))">Login</button>
 }
 else
 {
-    <h5 class="text-center">Hello @AccessToken.Name</h5>
+    <h5 class="text-center">Hello @AuthenticateUser.AccessToken.Name</h5>
     <button class="btn btn-primary btn-lg mt-1 mb-3" @onclick="@(_ => nav.NavigateTo("/user/account"))">My Account</button>
 
-    @if (AccessToken.IsStaff)
+    @if (AuthenticateUser.AccessToken.PermissionLevel >= PermissionLevel.Moderator)
     {
         <button class="btn btn-outline-info btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Staff Portal</button>
     }
 
-    @if (AccessToken.IsAdmin)
+    @if (AuthenticateUser.AccessToken.PermissionLevel >= PermissionLevel.Admin)
     {
         <button class="btn btn-outline-info btn-lg mb-3" @onclick="@(_ => nav.NavigateTo("/admin/devices"))">Admin Portal</button>
     }
@@ -54,7 +53,8 @@ else
 
 @code
 {
-    public AccessToken? AccessToken { get; set; }
+    [CascadingParameter]
+    public AuthenticateUser? AuthenticateUser { get; set; }
 
     public IPAddress? DetectedIPAddress { get; set; }
     public Device? Device { get; set; }
@@ -62,8 +62,6 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-
-        AccessToken = await webAuth.WebCheckLoggedInAsync(protectedLocalStorage);
 
         DetectedIPAddress = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
         

@@ -1,9 +1,9 @@
 ﻿@page "/admin/devices"
+@layout AdminLayout
 @using CaptivePortal.Database.Entities
 @using CaptivePortal.Database
 @using CaptivePortal.Services
 @using Microsoft.EntityFrameworkCore
-@rendermode InteractiveServer
 @inject CaptivePortalDbContext db
 @inject RadiusDisconnectorService disconnector
 
@@ -12,7 +12,7 @@
 <h1>Admin > Devices</h1>
 
 <button class="btn btn-secondary" @onclick="async _ => await RefreshData()">Refresh</button>
-
+<!--
 <table class="table">
     <thead>
         <tr>
@@ -35,7 +35,7 @@
             </tr>
         }
     </tbody>
-</table>
+</table>-->
 
 @code {
     public List<Device> Devices { get; set; } = new();

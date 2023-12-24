@@ -2,7 +2,6 @@
 @using CaptivePortal.Models
 @using CaptivePortal.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
-@rendermode InteractiveServer
 @inject WebAuthenticationService webAuthService
 @inject ProtectedLocalStorage protectedLocalStorage
 @inject NavigationManager navigationManager
@@ -24,6 +23,8 @@
         await webAuthService.WebLogoutAsync(protectedLocalStorage);
 
         await jsRuntime.InvokeVoidAsync("localStorage.clear");
+
+        await InvokeAsync(StateHasChanged);
 
         if (Redirect is not null)
         {

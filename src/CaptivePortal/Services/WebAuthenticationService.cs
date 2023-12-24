@@ -102,8 +102,7 @@ namespace CaptivePortal.Services
                 UserId = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                IsStaff = user.IsStaff,
-                IsAdmin = user.IsAdmin,
+                PermissionLevel = user.PermissionLevel,
                 IssuedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(5),
                 RefreshToken = Guid.NewGuid(),
@@ -135,8 +134,19 @@ namespace CaptivePortal.Services
 
         public async Task<AccessToken?> WebCheckLoggedInAsync(ProtectedLocalStorage protectedLocalStorage, CancellationToken cancellationToken = default)
         {
-            ProtectedBrowserStorageResult<AccessToken> plsResult 
-                = await protectedLocalStorage.GetAsync<AccessToken>(nameof(AccessToken));
+            ProtectedBrowserStorageResult<AccessToken> plsResult;
+            try
+            {
+                plsResult = await protectedLocalStorage.GetAsync<AccessToken>(nameof(AccessToken));
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    await protectedLocalStorage.DeleteAsync(nameof(AccessToken));
+                } catch(Exception) { }
+                return null;
+            }
 
             if (!plsResult.Success) return null;
 
@@ -183,8 +193,7 @@ namespace CaptivePortal.Services
                 UserId = userSession.UserId,
                 Name = userSession.User.Name,
                 Email = userSession.User.Email,
-                IsStaff = userSession.User.IsStaff,
-                IsAdmin = userSession.User.IsAdmin,
+                PermissionLevel = userSession.User.PermissionLevel,
                 IssuedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(5),
                 RefreshToken = userSession.RefreshToken,

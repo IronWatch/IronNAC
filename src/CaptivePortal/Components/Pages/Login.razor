@@ -2,7 +2,6 @@
 @using CaptivePortal.Models
 @using CaptivePortal.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
-@rendermode InteractiveServer
 @inject WebAuthenticationService webAuthService
 @inject ProtectedLocalStorage protectedLocalStorage
 @inject NavigationManager navigationManager
@@ -111,6 +110,8 @@ else if (AccessToken is not null && ChangePassword)
         AccessToken = loginResult.AccessToken;
         ChangePassword = loginResult.ChangePasswordRequired;
         Password = null;
+
+        await InvokeAsync(StateHasChanged);
 
         if (!IncorrectLogin && !ChangePassword)
         {

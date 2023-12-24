@@ -92,7 +92,7 @@ namespace CaptivePortal.Services
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
                 bool inSync = false;
-                int timeout = 60;
+                int timeout = 300;
                 while (!inSync &&
                     !cancellationToken.IsCancellationRequested &&
                     stopwatch.Elapsed.TotalSeconds <= timeout)

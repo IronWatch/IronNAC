@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(CaptivePortalDbContext))]
-    [Migration("20231222221849_NavigationPropertiesFixes")]
-    partial class NavigationPropertiesFixes
+    [Migration("20231224031417_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -51,6 +51,9 @@ namespace CaptivePortal.Database.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NasIpAddress")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NickName")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("UserId")
@@ -140,15 +143,12 @@ namespace CaptivePortal.Database.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsStaff")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("PermissionLevel")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

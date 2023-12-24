@@ -140,15 +140,12 @@ namespace CaptivePortal.Database.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsStaff")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("PermissionLevel")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

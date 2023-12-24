@@ -5,7 +5,6 @@
 @using CaptivePortal.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @using Microsoft.EntityFrameworkCore
-@rendermode InteractiveServer
 @inject NavigationManager navigationManager
 @inject RadiusDisconnectorService disconnector
 @inject WebAuthenticationService webAuthService
@@ -14,96 +13,100 @@
 
 <PageTitle>Captive Portal > Staff</PageTitle>
 
-@if (Device is not null && AccessToken is not null)
-{
-    @if (AuthorizedUntil is null && RegisterFailure is null)
+<CheckPermissions Level="PermissionLevel.User" Return="/portal">
+    @if (Device is not null && AuthenticateUser?.AccessToken is not null)
     {
-        <h4 class="text-center">Hello @AccessToken.Name</h4>
+        @if (AuthorizedUntil is null && RegisterFailure is null)
+        {
+            <h4 class="text-center">Hello @AuthenticateUser.AccessToken.Name</h4>
         
-        @if (!NickNameSet && !NickNameCustom)
-        {
-            <h5 class="text-center">Select your device type</h5>
-            <div class="d-flex justify-content-evenly">
-                <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Laptop"; NickNameSet = true;})">
-                    <span class="mdi mdi-laptop mdi-48px"></span><br/>
-                    <span>Laptop</span>
-                </button>
-                <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Desktop"; NickNameSet = true;})">
-                    <span class="mdi mdi-monitor mdi-48px"></span><br />
-                    <span>Desktop</span>
-                </button>
-            </div>
-            <div class="d-flex justify-content-evenly mb-4">
-                <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Phone"; NickNameSet = true;})">
-                    <span class="mdi mdi-cellphone mdi-48px"></span><br />
-                    <span>Phone</span>
-                </button>
-                <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickNameCustom = true;})">
-                    <span class="mdi mdi-tag-text-outline mdi-48px"></span><br />
-                    <span>Other</span>
-                </button>
-            </div>
-        }
-        else if (!NickNameSet)
-        {
-            <label>Name This Device:</label>
-            <form @onsubmit="_ => NickNameSet = true">
-                <input class="w-100 me-2 fs-4 mb-3" type="text" @bind="NickName" @ref="nickNameInputReference" />
-                <button class="d-block w-100 btn btn-primary btn-lg mb-3">Choose Name</button>
-            </form>
-        }
-        else
-        {
-            <div class="alert alert-warning" role="alert">
-                <h5>Heads Up!</h5>
-                <p>Registering your device will disconnect it from the Wifi network. Most devices will reconnect automatically.</p>
-                <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
-            </div>
+            @if (!NickNameSet && !NickNameCustom)
+            {
+                <h5 class="text-center">Select your device type</h5>
+                <div class="d-flex justify-content-evenly">
+                    <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Laptop"; NickNameSet = true;})">
+                        <span class="mdi mdi-laptop mdi-48px"></span><br/>
+                        <span>Laptop</span>
+                    </button>
+                    <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Desktop"; NickNameSet = true;})">
+                        <span class="mdi mdi-monitor mdi-48px"></span><br />
+                        <span>Desktop</span>
+                    </button>
+                </div>
+                <div class="d-flex justify-content-evenly mb-4">
+                    <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickName = "Phone"; NickNameSet = true;})">
+                        <span class="mdi mdi-cellphone mdi-48px"></span><br />
+                        <span>Phone</span>
+                    </button>
+                    <button class="btn btn-outline-info m-2" style="width: 120px; height: 120px;" @onclick="@(_ => {NickNameCustom = true;})">
+                        <span class="mdi mdi-tag-text-outline mdi-48px"></span><br />
+                        <span>Other</span>
+                    </button>
+                </div>
+            }
+            else if (!NickNameSet)
+            {
+                <label>Name This Device:</label>
+                <form @onsubmit="_ => NickNameSet = true">
+                    <input class="w-100 me-2 fs-4 mb-3" type="text" @bind="NickName" @ref="nickNameInputReference" />
+                    <button class="d-block w-100 btn btn-primary btn-lg mb-3">Choose Name</button>
+                </form>
+            }
+            else
+            {
+                <div class="alert alert-warning" role="alert">
+                    <h5>Heads Up!</h5>
+                    <p>Registering your device will disconnect it from the Wifi network. Most devices will reconnect automatically.</p>
+                    <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
+                </div>
 
-            <h5>MAC Address:</h5>
-            <div class="w-100 d-flex mb-3">
-                <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
-                <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-            </div>
+                <h5>MAC Address:</h5>
+                <div class="w-100 d-flex mb-3">
+                    <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
+                    <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+                </div>
 
-            <h5>Nickname:</h5>
-            <div class="w-100 d-flex mb-3">
-                <input class="flex-grow-1 me-2 fs-4" type="text" value="@(NickName)" disabled />
-                <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-            </div>
+                <h5>Nickname:</h5>
+                <div class="w-100 d-flex mb-3">
+                    <input class="flex-grow-1 me-2 fs-4" type="text" value="@(NickName)" disabled />
+                    <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+                </div>
 
-            <button class="btn btn-primary btn-lg mb-3" @onclick="async _ => await RegisterAsync()">Register this Device</button>
-        }
+                <button class="btn btn-primary btn-lg mb-3" @onclick="async _ => await RegisterAsync()">Register this Device</button>
+            }
 
-        @if (NickName is not null || NickNameCustom)
-        {
-            <button class="btn btn-outline-info mb-3" @onclick="_ => {NickNameSet = false; NickNameCustom = false; NickName = null;}">Back To Select A Device Type</button>
-        }
+            @if (NickName is not null || NickNameCustom)
+            {
+                <button class="btn btn-outline-info mb-3" @onclick="_ => {NickNameSet = false; NickNameCustom = false; NickName = null;}">Back To Select A Device Type</button>
+            }
 
-        <button class="btn btn-outline-warning" @onclick="DoLogout">Not You? Logout</button>
-    }
-    else
-    {
-        <h5 class="text-center">This device is authorized until <code>@AuthorizedUntil</code></h5>
-
-        @if (RegisterFailure is not null)
-        {
-            <div class="alert alert-danger" role="alert">
-                @RegisterFailure
-            </div>
+            <button class="btn btn-outline-warning" @onclick="DoLogout">Not You? Logout</button>
         }
         else
         {
-            <div class="alert alert-info" role="alert">
-                You may close this browser window. If your device did not automatically reconnect to the Wifi network, please do so now.
-            </div>
+            <h5 class="text-center">This device is authorized until <code>@AuthorizedUntil</code></h5>
+
+            @if (RegisterFailure is not null)
+            {
+                <div class="alert alert-danger" role="alert">
+                    @RegisterFailure
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info" role="alert">
+                    You may close this browser window. If your device did not automatically reconnect to the Wifi network, please do so now.
+                </div>
+            }
         }
     }
-}
+</CheckPermissions>
 
 @code {
     public Device? Device { get; set; }
-    public AccessToken? AccessToken { get; set; }
+
+    [CascadingParameter]
+    public AuthenticateUser? AuthenticateUser { get; set; }
 
     public bool NickNameSet { get; set; }
     public bool NickNameCustom { get; set; }
@@ -132,20 +135,12 @@
             return;
         }
 
-        AccessToken = await webAuthService.WebCheckLoggedInAsync(protectedLocalStorage);
-        if (AccessToken is null)
-        {
-            navigationManager.NavigateTo("/login?redirect=%2Fportal%2Fuser&return=%2Fportal");
-            return;
-        }
-
-        await protectedLocalStorage.DeleteAsync(nameof(Device));
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task RegisterAsync()
     {
-        if (this.Device is null || this.AccessToken is null) return;
+        if (this.Device is null) return;
 
         AuthorizedUntil = DateTime.UtcNow.AddDays(30);
 
@@ -166,6 +161,8 @@
         {
             RegisterFailure = "Could not automatically disconnect and reconnect your device! Please manually disconnect and reconnect to the Wifi Network!";
         }
+
+        await protectedLocalStorage.DeleteAsync(nameof(Device));
     }
 
     private void DoLogout()

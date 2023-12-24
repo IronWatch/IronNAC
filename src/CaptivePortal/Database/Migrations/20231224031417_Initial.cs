@@ -36,8 +36,8 @@ namespace CaptivePortal.Database.Migrations
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Email = table.Column<string>(type: "TEXT", nullable: false),
                     Hash = table.Column<string>(type: "TEXT", nullable: false),
-                    IsStaff = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsAdmin = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ChangePasswordNextLogin = table.Column<bool>(type: "INTEGER", nullable: false),
+                    PermissionLevel = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -52,6 +52,7 @@ namespace CaptivePortal.Database.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     UserId = table.Column<int>(type: "INTEGER", nullable: true),
                     DeviceNetworkId = table.Column<int>(type: "INTEGER", nullable: true),
+                    NickName = table.Column<string>(type: "TEXT", nullable: true),
                     Authorized = table.Column<bool>(type: "INTEGER", nullable: false),
                     AuthorizedUntil = table.Column<DateTime>(type: "TEXT", nullable: true),
                     DeviceMac = table.Column<string>(type: "TEXT", nullable: true),
@@ -69,6 +70,28 @@ namespace CaptivePortal.Database.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserSessions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
+                    RefreshToken = table.Column<Guid>(type: "TEXT", nullable: false),
+                    RefreshTokenIssuedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    RefreshTokenExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserSessions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -116,6 +139,11 @@ namespace CaptivePortal.Database.Migrations
                 name: "IX_Devices_UserId",
                 table: "Devices",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserSessions_UserId",
+                table: "UserSessions",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -123,6 +151,9 @@ namespace CaptivePortal.Database.Migrations
         {
             migrationBuilder.DropTable(
                 name: "DeviceNetworks");
+
+            migrationBuilder.DropTable(
+                name: "UserSessions");
 
             migrationBuilder.DropTable(
                 name: "Devices");

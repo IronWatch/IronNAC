@@ -4,12 +4,19 @@ using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
 using CaptivePortal.Listeners;
 using CaptivePortal.Services;
-using LettuceEncrypt;
 using LettuceEncrypt.Acme;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
+
+// Hotpath shortcut as we use the design time factory to build the dbcontext for a migration
+// ef will still try and start up the application as part of detecting things, needlessly calling most of our startup code
+if (EF.IsDesignTime)
+{
+    _ = WebApplication.CreateBuilder(args).Build();
+    return;
+}
 
 ILogger logger = LoggerFactory.Create(l => l
     .SetMinimumLevel(LogLevel.Trace)
@@ -109,8 +116,7 @@ try
                 Email = "admin@localhost",
                 Hash = webAuthService.GetHash(initialPassword),
                 ChangePasswordNextLogin = true,
-                IsStaff = true,
-                IsAdmin = true
+                PermissionLevel = CaptivePortal.Models.PermissionLevel.Admin
             };
             db.Users.Add(firstUser);
             await db.SaveChangesAsync();
