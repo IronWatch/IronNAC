@@ -10,13 +10,36 @@ namespace CaptivePortal.Database.Entities
         public string? CustomName { get; set; }
         public bool IsPool { get; set; }
 
+        public List<Network> Networks { get; set; } = new();
+        public List<UserNetworkGroup> UserNetworkGroups { get; set; } = new();
+
         [NotMapped]
         public string? Name =>
             Registration ? "Registration Network" :
             Guest ? "Guest Network Pool" :
             CustomName;
 
-        public List<Network> Networks { get; set; } = new();
-        public List<UserNetworkGroup> UserNetworkGroups { get; set; } = new();
+        [NotMapped]
+        public int TotalCapacity =>
+            Networks.Sum(x => x.Capacity);
+
+        [NotMapped]
+        public int TotalDevices =>
+            Networks.Sum(x => x.DeviceNetworks.Count);
+
+        [NotMapped]
+        public bool Full =>
+            Networks.All(x => x.Full);
+
+        [NotMapped]
+        public float FillPercentage
+        {
+            get
+            {
+                if (TotalDevices == 0) return 0f;
+
+                return (float)TotalCapacity / (float)TotalDevices;
+            }
+        }
     }
 }

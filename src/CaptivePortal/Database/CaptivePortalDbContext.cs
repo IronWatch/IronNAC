@@ -56,7 +56,8 @@ namespace CaptivePortal.Database
 
             NetworkGroup guestNetworkGroup = new()
             {
-                Guest = true
+                Guest = true,
+                IsPool = true
             };
             this.NetworkGroups.Add(guestNetworkGroup);
             logger.LogInformation("Seeded Guest Network Group");

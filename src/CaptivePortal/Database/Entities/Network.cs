@@ -1,4 +1,6 @@
-﻿namespace CaptivePortal.Database.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace CaptivePortal.Database.Entities
 {
     public class Network
     {
@@ -19,5 +21,19 @@
         }
 
         public List<DeviceNetwork> DeviceNetworks { get; set; } = new();
+
+        [NotMapped]
+        public bool Full => DeviceNetworks.Count >= Capacity;
+
+        [NotMapped]
+        public float FillPercentage
+        {
+            get
+            {
+                if (DeviceNetworks.Count == 0) return 0f;
+
+                return (float)Capacity / (float)DeviceNetworks.Count;
+            }
+        }
     }
 }
