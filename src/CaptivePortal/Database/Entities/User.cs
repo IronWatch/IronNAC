@@ -13,5 +13,6 @@ namespace CaptivePortal.Database.Entities
 
         public List<Device> Devices { get; set; } = new();
         public List<UserSession> UserSessions { get; set; } = new();
+        public List<UserNetworkGroup> UserNetworkGroups { get; set; } = new();
     }
 }

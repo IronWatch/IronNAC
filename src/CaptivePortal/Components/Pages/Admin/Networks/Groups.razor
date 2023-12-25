@@ -1,0 +1,41 @@
+﻿@page "/admin/networks/groups"
+@using CaptivePortal.Database
+@using CaptivePortal.Database.Entities
+@using Microsoft.EntityFrameworkCore
+@layout AdminLayout
+@inject CaptivePortalDbContext db
+
+<PageTitle>Admin > Networks Groups</PageTitle>
+
+<div class="container-sm">
+    <h1 class="text-center mt-sm-4">Networks</h1>
+    <div>
+        @foreach (NetworkGroup networkGroup in networkGroups)
+        {
+            <div class="card">
+                <h5>@networkGroup.Name</h5>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<NetworkGroup> networkGroups = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await Refresh();
+    }
+
+    private async Task Refresh()
+    {
+        networkGroups = await db.NetworkGroups
+            .Include(x => x.Networks)
+            .OrderByDescending(x => x.Registration)
+            .ThenByDescending(x => x.Guest)
+            .ToListAsync();
+    }
+
+}

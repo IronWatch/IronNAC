@@ -10,6 +10,8 @@ namespace CaptivePortal.Database
         public DbSet<Network> Networks { get; set; }
         public DbSet<DeviceNetwork> DeviceNetworks { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
+        public DbSet<NetworkGroup> NetworkGroups { get; set; }
+        public DbSet<UserNetworkGroup> UserNetworkGroups { get; set; }
 
         private readonly IConfiguration configuration;
         public CaptivePortalDbContext(IConfiguration configuration)

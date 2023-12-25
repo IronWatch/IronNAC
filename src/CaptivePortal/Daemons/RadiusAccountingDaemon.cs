@@ -25,7 +25,6 @@ namespace CaptivePortal.Daemons
             UdpClient? udpClient = null;
             IServiceScope? scope = null;
             byte[] secret;
-            string fallbackVlan;
             CaptivePortalDbContext db;
 
             try
