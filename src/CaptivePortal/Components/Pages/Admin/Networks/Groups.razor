@@ -8,12 +8,16 @@
 <PageTitle>Admin > Networks Groups</PageTitle>
 
 <div class="container-sm">
-    <h1 class="text-center mt-sm-4">Networks</h1>
+    <h1 class="text-center mt-sm-4">Network Groups</h1>
     <div>
         @foreach (NetworkGroup networkGroup in networkGroups)
         {
             <div class="card">
                 <h5>@networkGroup.Name</h5>
+                @foreach (Network network in networkGroup.Networks)
+                {
+                    
+                }
             </div>
         }
     </div>

@@ -8,11 +8,12 @@ namespace CaptivePortal.Database.Entities
         public bool Registration { get; set; }
         public bool Guest { get; set; }
         public string? CustomName { get; set; }
+        public bool IsPool { get; set; }
 
         [NotMapped]
         public string? Name =>
-            Registration ? "Registration" :
-            Guest ? "Guest" :
+            Registration ? "Registration Network" :
+            Guest ? "Guest Network Pool" :
             CustomName;
 
         public List<Network> Networks { get; set; } = new();

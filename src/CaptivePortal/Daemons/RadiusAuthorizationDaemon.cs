@@ -27,7 +27,6 @@ namespace CaptivePortal.Daemons
             UdpClient? udpClient = null;
             IServiceScope? scope = null;
             byte[] secret;
-            string fallbackVlan;
             CaptivePortalDbContext db;
 
             try
@@ -40,9 +39,6 @@ namespace CaptivePortal.Daemons
                     string? secretString = Configuration.GetValue<string>("Radius:AuthorizationSecret")
                         ?? throw new MissingFieldException("Radius:AuthorizationSecret");
                     secret = Encoding.ASCII.GetBytes(secretString);
-
-                    fallbackVlan = Configuration.GetValue<string>("CaptivePortal:FallbackRegistrationVlan")
-                        ?? throw new MissingFieldException("CaptivePortal:FallbackRegistrationVlan");
 
                     udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 1812));
                     scope = serviceProvider.CreateScope();
@@ -110,15 +106,35 @@ namespace CaptivePortal.Daemons
                                     await db.SaveChangesAsync(cancellationToken);
                                 }
 
-                                // Not Authorized so go to registration
                                 if (!device.Authorized ||
-                                    device.AuthorizedUntil <= DateTime.UtcNow)
+                                    device.AuthorizedUntil <= DateTime.UtcNow ||
+                                    device.DeviceNetwork is null)
                                 {
-                                    response = RadiusPacket
-                                        .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
-                                        .AddAttribute(new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN))
-                                        .AddAttribute(new TunnelMediumTypeAttribute(0, TunnelMediumTypeAttribute.Values.IEEE_802))
-                                        .AddAttribute(new TunnelPrivateGroupIdAttribute(0, fallbackVlan))
+                                    // Not Authorized or missing a network assignment so go to registration
+                                    
+                                    // Get Registration Network
+                                    Network? registrationNetwork = await db.Networks
+                                        .Where(x => x.NetworkGroup.Registration)
+                                        .FirstOrDefaultAsync(cancellationToken);
+                                    if (registrationNetwork is null)
+                                    {
+                                        // Registration network not configured yet!
+                                        response = RadiusPacket
+                                            .Create(RadiusCode.ACCESS_REJECT, incoming.Identifier);
+                                    }
+                                    else
+                                    {
+                                        response = RadiusPacket
+                                            .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
+                                            .AddAttribute(new TunnelTypeAttribute(0, 
+                                                TunnelTypeAttribute.TunnelTypes.VLAN))
+                                            .AddAttribute(new TunnelMediumTypeAttribute(0, 
+                                                TunnelMediumTypeAttribute.Values.IEEE_802))
+                                            .AddAttribute(new TunnelPrivateGroupIdAttribute(0, 
+                                                registrationNetwork.Vlan.ToString()));
+                                    }
+
+                                    response = response
                                         .AddMessageAuthenticator(secret)
                                         .AddResponseAuthenticator(secret, incoming.Authenticator);
 
@@ -129,17 +145,18 @@ namespace CaptivePortal.Daemons
                                     break;
                                 }
 
-                                // Authorized
-                                string authorizedVlan = device.DeviceNetwork?.Network.Vlan.ToString() ?? fallbackVlan;
+                                // Authorized and has a network assignment
 
                                 response = RadiusPacket
                                     .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
-                                    .AddAttribute(new TunnelTypeAttribute(0, TunnelTypeAttribute.TunnelTypes.VLAN))
-                                    .AddAttribute(new TunnelMediumTypeAttribute(0, TunnelMediumTypeAttribute.Values.IEEE_802))
-                                    .AddAttribute(new TunnelPrivateGroupIdAttribute(0, authorizedVlan))
+                                    .AddAttribute(new TunnelTypeAttribute(0, 
+                                        TunnelTypeAttribute.TunnelTypes.VLAN))
+                                    .AddAttribute(new TunnelMediumTypeAttribute(0, 
+                                        TunnelMediumTypeAttribute.Values.IEEE_802))
+                                    .AddAttribute(new TunnelPrivateGroupIdAttribute(0, 
+                                        device.DeviceNetwork.Network.Vlan.ToString()))
                                     .AddMessageAuthenticator(secret)
                                     .AddResponseAuthenticator(secret, incoming.Authenticator);
-
 
                                 await udpClient.SendAsync(
                                     response.ToBytes(),

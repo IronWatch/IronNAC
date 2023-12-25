@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Design;
+﻿using CaptivePortal.Services;
+using Microsoft.EntityFrameworkCore.Design;
 
 namespace CaptivePortal.Database
 {
@@ -12,7 +13,12 @@ namespace CaptivePortal.Database
                 .AddJsonFile("appsettings.json", optional: false)
                 .Build();
 
-            return new CaptivePortalDbContext(configuration);
+            ILogger<CaptivePortalDbContext> logger = LoggerFactory.Create(l => l
+                .SetMinimumLevel(LogLevel.Trace)
+                .AddConsole())
+                .CreateLogger<CaptivePortalDbContext>();
+
+            return new CaptivePortalDbContext(configuration, logger);
         }
     }
 }

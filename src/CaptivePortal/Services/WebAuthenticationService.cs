@@ -9,7 +9,7 @@ namespace CaptivePortal.Services
     public class WebAuthenticationService
     {
         private readonly CaptivePortalDbContext db;
-        private readonly Sodium.PasswordHash.StrengthArgon strength = Sodium.PasswordHash.StrengthArgon.Interactive;
+        private static readonly Sodium.PasswordHash.StrengthArgon strength = Sodium.PasswordHash.StrengthArgon.Interactive;
 
         public WebAuthenticationService(
             CaptivePortalDbContext db)
@@ -78,7 +78,7 @@ namespace CaptivePortal.Services
             return (modified > 0); // TODO error reporting if modifying more than 1
         }
 
-        public string GetHash(string password)
+        public static string GetHash(string password)
         {
             return Sodium.PasswordHash.ArgonHashString(password, strength);
         }

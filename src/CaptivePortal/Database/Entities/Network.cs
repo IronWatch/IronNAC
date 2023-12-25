@@ -8,6 +8,7 @@
         public required string GatewayAddress { get; set; }
         public int Cidr { get; set; }
         public int Vlan { get; set; }
+        public int Capacity { get; set; }
 
         public int NetworkGroupId { get; set; }
         private NetworkGroup? _networkGroup;

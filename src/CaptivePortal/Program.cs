@@ -68,23 +68,7 @@ using (IServiceScope scope = host.Services.CreateScope())
 
     if (creatingDb)
     {
-        logger.LogInformation("Database was just created for the first time. Processing Seed Data");
-
-        WebAuthenticationService webAuthService = scope.ServiceProvider.GetRequiredService<WebAuthenticationService>();
-
-        string initialPassword = "password";
-        User? firstUser = new()
-        {
-            Name = "Default Administrator",
-            Email = "admin@localhost",
-            Hash = webAuthService.GetHash(initialPassword),
-            ChangePasswordNextLogin = true,
-            PermissionLevel = CaptivePortal.Models.PermissionLevel.Admin
-        };
-        db.Users.Add(firstUser);
-        await db.SaveChangesAsync();
-
-        logger.LogInformation("Created Initial Administrator with\nEmail: {email}\nPassword: {password}", firstUser.Email, initialPassword);
+        await db.SeedDatabase();
     }
 }
 
