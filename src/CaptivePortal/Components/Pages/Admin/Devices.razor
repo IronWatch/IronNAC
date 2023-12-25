@@ -11,6 +11,16 @@
 
 <div class="container-sm" >
     <h1 class="text-center mt-sm-4">Devices</h1>
+    <div>
+        @foreach (Device device in devices)
+        {
+            <div class="card">
+                <h5>@device.DeviceMac</h5>
+                <span>Authorized: @device.AuthorizedUntil</span>
+                <button class="btn btn-danger" @onclick="@(async _ => await RemoveDevice(device))">Remove DeviceS</button>
+            </div>
+        }
+    </div>
 </div>
 
 @code {

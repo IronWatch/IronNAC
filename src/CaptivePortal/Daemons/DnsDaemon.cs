@@ -38,7 +38,7 @@ namespace CaptivePortal.Daemons
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogCritical(ex, "Critical error when starting the {listener} thread!", nameof(DnsDaemon));
+                    Logger.LogCritical(ex, "Critical error when starting the {listener}!", nameof(DnsDaemon));
                     return;
                 }
 

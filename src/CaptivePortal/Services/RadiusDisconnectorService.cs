@@ -6,21 +6,21 @@ using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Radius.RadiusAttributes;
+using Microsoft.Extensions.Configuration;
 
 namespace CaptivePortal.Services
 {
     public class RadiusDisconnectorService
     {
-        private UdpClient udpClient = new();
-        private byte[] secret = Encoding.ASCII.GetBytes("thesecret");
+        private byte[] secret;
         private byte lastSentIdentifier = 0;
 
-        private readonly CaptivePortalDbContext db;
-
         public RadiusDisconnectorService(
-            CaptivePortalDbContext db)
+            IConfiguration configuration)
         {
-            this.db = db;
+            string? secretString = configuration.GetValue<string>("Radius:AccountingSecret")
+                        ?? throw new MissingFieldException("Radius:AccountingSecret");
+            secret = Encoding.ASCII.GetBytes(secretString);
         }
 
         public Task<bool> Disconnect(Device device, CancellationToken cancellationToken = default)
@@ -56,7 +56,8 @@ namespace CaptivePortal.Services
                 .AddAttribute(new AccountingSessionIdAttribute(accountingSessionId));
 
             disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
-
+            
+            using UdpClient udpClient = new();
             await udpClient.SendAsync(
                 disconnect.ToBytes(),
                 new IPEndPoint(nasIpAddressAddress, 3799),
