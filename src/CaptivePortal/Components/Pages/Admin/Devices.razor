@@ -1,0 +1,45 @@
+﻿@page "/admin/devices"
+@layout AdminLayout
+@using CaptivePortal.Database.Entities
+@using CaptivePortal.Database
+@using CaptivePortal.Services
+@using Microsoft.EntityFrameworkCore
+@inject CaptivePortalDbContext db
+@inject RadiusDisconnectorService disconnector
+
+<PageTitle>Admin > Devices</PageTitle>
+
+<div class="container-sm" >
+    <h1 class="text-center mt-sm-4">Devices</h1>
+</div>
+
+@code {
+    private List<Device> devices = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        devices = await db.Devices
+            .AsNoTracking()
+            .ToListAsync();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveDevice(Device device)
+    {       
+        await db.Devices
+            .Where(x => x.Id == device.Id)
+            .ExecuteDeleteAsync();
+
+        _ = await disconnector.Disconnect(device);
+
+        await RefreshData();
+    }
+}
