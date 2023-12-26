@@ -1,14 +1,18 @@
 {
-  "$schema": "http://json.schemastore.org/launchsettings.json",
-    "profiles": {
-      "http": {
-        "commandName": "Project",
-        "dotnetRunMessages": true,
-        "externalUrlConfiguration": true,
-        "launchBrowser": false,
-        "environmentVariables": {
-          "ASPNETCORE_ENVIRONMENT": "Development"
-        }
-      }
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true,
+      "externalUrlConfiguration": true
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "publishAllPorts": false,
+      "externalUrlConfiguration": true
     }
-  }
+  },
+  "$schema": "http://json.schemastore.org/launchsettings.json"
+}
