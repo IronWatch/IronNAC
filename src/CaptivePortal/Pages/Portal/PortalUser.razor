@@ -52,30 +52,33 @@
                     <button class="d-block w-100 btn btn-primary btn-lg mb-3">Choose Name</button>
                 </form>
             }
-            else if (selectedNetworkGroup is null ||
-                (!selectedNetworkGroup.IsPool && selectedNetwork is null))
+            else if (selectedNetworkGroup is null)
             {
                 <h5 class="text-center">Select your Network</h5>
 
-                <label>Network Group</label>
-                <select @onchange="SelectNetworkGroup">
-                    @foreach(NetworkGroup networkGroup in networkGroups)
-                    {
-                        <option value="@networkGroup.Id">@networkGroup.Name</option>
-                    }
-                </select>
-
-                @if (selectedNetworkGroup is not null && !selectedNetworkGroup.IsPool)
+                @foreach (NetworkGroup networkGroup in networkGroups)
                 {
-                    <label>Network</label>
-                    <select @onchange="SelectNetwork">
-                        @foreach (Network network in selectedNetworkGroup.Networks)
-                        {
-                            <option value="@network.Id">@network.Name</option>
-                        }
-                    </select>
+                    <div class="card p-3 mt-4" @onclick="@(_ => selectedNetworkGroup = networkGroup)">
+                        <h3>@networkGroup.Name</h3>
+                        <p class="mt-2 mb-1">
+                            Pooled: <code>@(networkGroup.IsPool ? "YES" : "NO")</code><br />
+                            Networks: <code>@networkGroup.Networks.Count</code><br />
+                            <code>@(networkGroupUsage.GetValueOrDefault(networkGroup.Id))</code> of <code>@(networkGroupCapacity.GetValueOrDefault(networkGroup.Id))</code> addresses in use
+                        </p>
+                        <div class="d-flex align-items-center">
+                            <div class="progress flex-grow-1" style="height: 32px;">
+                                <div class="progress-bar overflow-visible" style="@($"width: {GetGroupUsagePercentage(networkGroup.Id)};")">
+                                    <span class="p-2 fs-5">@(GetGroupUsagePercentage(networkGroup.Id)) Full</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
 
+            }
+            else if (!selectedNetworkGroup.IsPool && selectedNetwork is null)
+            {
+                <h5 class="text-center">Select your Network</h5>
             }
             else
             {
@@ -85,27 +88,15 @@
                     <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
                 </div>
 
-                <h5>MAC Address:</h5>
-                <div class="w-100 d-flex mb-3">
-                    <input class="flex-grow-1 me-2 fs-4" type="text" value="@(device.DeviceMac?.ToUpper())" disabled />
-                    <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-                </div>
-
-                <h5>Nickname:</h5>
-                <div class="w-100 d-flex mb-3">
-                    <input class="flex-grow-1 me-2 fs-4" type="text" value="@(nickName)" disabled />
-                    <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-                </div>
-
                 <button class="btn btn-primary btn-lg mb-3" @onclick="async _ => await RegisterAsync()">Register this Device</button>
             }
 
             @if (nickName is not null || nickNameCustom)
             {
-                <button class="btn btn-outline-info mb-3" @onclick="_ => {nickNameSet = false; nickNameCustom = false; nickName = null;}">Back To Select A Device Type</button>
+                <button class="btn btn-outline-info mt-3" @onclick="_ => {nickNameSet = false; nickNameCustom = false; nickName = null;}">Back To Select A Device Type</button>
             }
 
-            <button class="btn btn-outline-warning" @onclick="DoLogout">Not You? Logout</button>
+            <button class="btn btn-outline-warning mt-3" @onclick="DoLogout">Not You? Logout</button>
         }
         else
         {
@@ -132,7 +123,11 @@
     public AuthenticateUser? AuthenticateUser { get; set; }
 
     private Device? device;
+
     private List<NetworkGroup> networkGroups = new();
+    private Dictionary<int, int> networkGroupCapacity = new();
+    private Dictionary<int, int> networkGroupUsage = new();
+
     private NetworkGroup? selectedNetworkGroup;
     private Network? selectedNetwork;
 
@@ -155,7 +150,7 @@
 
         if (!firstRender) return;
 
-        var deviceResult = await protectedLocalStorage.GetAsync<Device>(nameof(device));
+        var deviceResult = await protectedLocalStorage.GetAsync<Device>(nameof(Device));
         device = deviceResult.Value;
         if (!deviceResult.Success || device is null)
         {
@@ -172,11 +167,47 @@
     {
         if (AuthenticateUser?.AccessToken is null) return;
 
-        networkGroups = await db.UserNetworkGroups
-            .Where(x => x.UserId == AuthenticateUser.AccessToken.UserId)
-            .Select(x => x.NetworkGroup)
-            .Include(x => x.Networks)
-            .ToListAsync();
+        if (AuthenticateUser.AccessToken.PermissionLevel == PermissionLevel.Admin)
+        {
+            networkGroups = await db.NetworkGroups
+                .Where(x => !x.Registration)
+                .Include(x => x.Networks)
+                .ToListAsync();
+        }
+        else
+        {
+            networkGroups = await db.UserNetworkGroups
+                .Where(x => x.UserId == AuthenticateUser.AccessToken.UserId)
+                .Select(x => x.NetworkGroup)
+                .Include(x => x.Networks)
+                .ToListAsync();
+        }
+
+        networkGroupCapacity = (await db.Networks
+            .GroupBy(x => x.NetworkGroupId)
+            .Select(x => new KeyValuePair<int, int>(x.Key, x.Sum(y => y.Capacity)))
+            .ToListAsync())
+            .ToDictionary();
+
+        networkGroupUsage = (await db.Networks
+            .GroupBy(x => x.NetworkGroupId)
+            .Select(x => new KeyValuePair<int, int>(x.Key, x.Sum(y => y.DeviceNetworks.Count)))
+            .ToListAsync())
+            .ToDictionary();
+    }
+
+    private string GetGroupUsagePercentage(int networkGroupId)
+    {
+        int capacity = networkGroupCapacity.GetValueOrDefault(networkGroupId);
+        int usage = networkGroupUsage.GetValueOrDefault(networkGroupId);
+        if (usage == 0) return "0%";
+        if (capacity == usage) return "100%";
+
+        int percentage = Convert.ToInt32(Math.Ceiling((float)usage * 100f / (float)capacity));
+        // If we rounded up to 100% but aren't actually capacity == usage then set to 99%
+        if (percentage == 100) percentage = 99;
+
+        return $"{percentage}%";
     }
 
     private void SelectNetworkGroup(ChangeEventArgs e)
@@ -197,7 +228,7 @@
 
     private async Task RegisterAsync()
     {
-        if (this.device is null) return;
+        if (this.device is null || selectedNetworkGroup is null) return;
 
         authorizedUntil = DateTime.UtcNow.AddDays(30);
 
@@ -208,6 +239,28 @@
                 .SetProperty(p => p.Authorized, true)
                 .SetProperty(p => p.AuthorizedUntil, authorizedUntil)
             );
+
+        await db.DeviceNetworks
+            .Where(x => x.DeviceId == device.Id)
+            .ExecuteDeleteAsync();
+
+        if (selectedNetwork is null && !selectedNetworkGroup.IsPool) return;
+        if(selectedNetwork is null)
+        {
+            selectedNetwork = await db.Networks
+                .Where(x => x.NetworkGroupId == selectedNetworkGroup.Id)
+                .Where(x => x.DeviceNetworks.Count < x.Capacity)
+                .FirstOrDefaultAsync();
+        }
+        if (selectedNetwork is null) return;
+
+        DeviceNetwork deviceNetwork = new()
+        {
+            DeviceId = device.Id,
+            NetworkId = selectedNetwork.Id
+        };
+        db.Add(deviceNetwork);
+        await db.SaveChangesAsync();
 
         Device? reloadedDevice = await db.Devices
             .AsNoTracking()

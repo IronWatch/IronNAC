@@ -23,10 +23,11 @@ namespace CaptivePortal.Database.Entities
             get => _network ?? throw new InvalidOperationException();
         }
 
+        /*
         public required string AssignedDeviceAddress { get; set; }
         public bool ManuallyAssignedAddress { get; set; }
 
         public DateTime? LeaseIssuedAt { get; set; }
-        public DateTime? LeaseExpiresAt { get; set; }
+        public DateTime? LeaseExpiresAt { get; set; }*/
     }
 }

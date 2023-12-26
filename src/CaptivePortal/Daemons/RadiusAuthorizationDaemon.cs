@@ -112,9 +112,10 @@ namespace CaptivePortal.Daemons
                                 {
                                     // Not Authorized or missing a network assignment so go to registration
                                     
-                                    // Get Registration Network
+                                    // Get Registration Network with spare capacity
                                     Network? registrationNetwork = await db.Networks
                                         .Where(x => x.NetworkGroup.Registration)
+                                        .Where(x => x.DeviceNetworks.Count < x.Capacity)
                                         .FirstOrDefaultAsync(cancellationToken);
                                     if (registrationNetwork is null)
                                     {
@@ -124,6 +125,21 @@ namespace CaptivePortal.Daemons
                                     }
                                     else
                                     {
+                                        // Reassign device to this registration network
+                                        if (device.DeviceNetwork is not null)
+                                        {
+                                            db.Remove(device.DeviceNetwork);
+                                            await db.SaveChangesAsync(cancellationToken);
+                                        }
+
+                                        DeviceNetwork newDeviceNetwork = new()
+                                        {
+                                            DeviceId = device.Id,
+                                            NetworkId = registrationNetwork.Id
+                                        };
+                                        db.Add(newDeviceNetwork);
+                                        await db.SaveChangesAsync(cancellationToken);
+                                        
                                         response = RadiusPacket
                                             .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
                                             .AddAttribute(new TunnelTypeAttribute(0, 
@@ -133,36 +149,29 @@ namespace CaptivePortal.Daemons
                                             .AddAttribute(new TunnelPrivateGroupIdAttribute(0, 
                                                 registrationNetwork.Vlan.ToString()));
                                     }
+                                }
+                                else
+                                {
+                                    // Authorized and has a network assignment
 
-                                    response = response
-                                        .AddMessageAuthenticator(secret)
-                                        .AddResponseAuthenticator(secret, incoming.Authenticator);
-
-                                    await udpClient.SendAsync(
-                                        response.ToBytes(),
-                                        udpReceiveResult.RemoteEndPoint,
-                                        cancellationToken);
-                                    break;
+                                    response = RadiusPacket
+                                        .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
+                                        .AddAttribute(new TunnelTypeAttribute(0,
+                                            TunnelTypeAttribute.TunnelTypes.VLAN))
+                                        .AddAttribute(new TunnelMediumTypeAttribute(0,
+                                            TunnelMediumTypeAttribute.Values.IEEE_802))
+                                        .AddAttribute(new TunnelPrivateGroupIdAttribute(0,
+                                            device.DeviceNetwork.Network.Vlan.ToString()));
                                 }
 
-                                // Authorized and has a network assignment
-
-                                response = RadiusPacket
-                                    .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
-                                    .AddAttribute(new TunnelTypeAttribute(0, 
-                                        TunnelTypeAttribute.TunnelTypes.VLAN))
-                                    .AddAttribute(new TunnelMediumTypeAttribute(0, 
-                                        TunnelMediumTypeAttribute.Values.IEEE_802))
-                                    .AddAttribute(new TunnelPrivateGroupIdAttribute(0, 
-                                        device.DeviceNetwork.Network.Vlan.ToString()))
-                                    .AddMessageAuthenticator(secret)
-                                    .AddResponseAuthenticator(secret, incoming.Authenticator);
+                                response = response
+                                        .AddMessageAuthenticator(secret)
+                                        .AddResponseAuthenticator(secret, incoming.Authenticator);
 
                                 await udpClient.SendAsync(
                                     response.ToBytes(),
                                     udpReceiveResult.RemoteEndPoint,
                                     cancellationToken);
-
                                 break;
 
                             default:

@@ -5,10 +5,9 @@ namespace CaptivePortal.Database.Entities
     public class Network
     {
         public int Id { get; set; }
-        public required string Name { get; set; }
-        public required string NetworkAddress { get; set; }
-        public required string GatewayAddress { get; set; }
-        public int Cidr { get; set; }
+        public string Name { get; set; } = String.Empty;
+        public string NetworkAddress { get; set; } = String.Empty;
+        public string GatewayAddress { get; set; } = String.Empty;
         public int Vlan { get; set; }
         public int Capacity { get; set; }
 
@@ -21,19 +20,5 @@ namespace CaptivePortal.Database.Entities
         }
 
         public List<DeviceNetwork> DeviceNetworks { get; set; } = new();
-
-        [NotMapped]
-        public bool Full => DeviceNetworks.Count >= Capacity;
-
-        [NotMapped]
-        public float FillPercentage
-        {
-            get
-            {
-                if (DeviceNetworks.Count == 0) return 0f;
-
-                return (float)Capacity / (float)DeviceNetworks.Count;
-            }
-        }
     }
 }

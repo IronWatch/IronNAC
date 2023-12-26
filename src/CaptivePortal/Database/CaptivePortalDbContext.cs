@@ -49,7 +49,9 @@ namespace CaptivePortal.Database
 
             NetworkGroup registrationNetworkGroup = new()
             {
-                Registration = true
+                Registration = true,
+                IsPool = true,
+                Name = "Registration Networks"
             };
             this.NetworkGroups.Add(registrationNetworkGroup);
             logger.LogInformation("Seeded Registration Network Group");
@@ -57,7 +59,8 @@ namespace CaptivePortal.Database
             NetworkGroup guestNetworkGroup = new()
             {
                 Guest = true,
-                IsPool = true
+                IsPool = true,
+                Name = "Student / Guest Network Pool"
             };
             this.NetworkGroups.Add(guestNetworkGroup);
             logger.LogInformation("Seeded Guest Network Group");

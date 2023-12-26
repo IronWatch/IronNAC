@@ -3,6 +3,7 @@ using System;
 using CaptivePortal.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(CaptivePortalDbContext))]
-    partial class CaptivePortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231225235115_NetworkGroupName")]
+    partial class NetworkGroupName
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -69,7 +72,20 @@ namespace CaptivePortal.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AssignedDeviceAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LeaseIssuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ManuallyAssignedAddress")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("NetworkId")
@@ -92,6 +108,9 @@ namespace CaptivePortal.Database.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Capacity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Cidr")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("GatewayAddress")
