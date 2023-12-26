@@ -5,11 +5,12 @@
 @using CaptivePortal.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @using Microsoft.EntityFrameworkCore
+@implements IDisposable
 @inject NavigationManager navigationManager
 @inject RadiusDisconnectorService disconnector
 @inject WebAuthenticationService webAuthService
 @inject ProtectedLocalStorage protectedLocalStorage
-@inject CaptivePortalDbContext db
+@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
 
 <PageTitle>Captive Portal > Staff</PageTitle>
 
@@ -140,6 +141,13 @@
     private DateTime? authorizedUntil;
     private string? registerFailure;
 
+    private CaptivePortalDbContext? db;
+
+    public void Dispose()
+    {
+        db?.Dispose();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (nickNameCustom && !hasFocusedNickNameInput)
@@ -166,6 +174,8 @@
     private async Task GetNetworkGroups()
     {
         if (AuthenticateUser?.AccessToken is null) return;
+
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
 
         if (AuthenticateUser.AccessToken.PermissionLevel == PermissionLevel.Admin)
         {
@@ -229,6 +239,8 @@
     private async Task RegisterAsync()
     {
         if (this.device is null || selectedNetworkGroup is null) return;
+
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
 
         authorizedUntil = DateTime.UtcNow.AddDays(30);
 

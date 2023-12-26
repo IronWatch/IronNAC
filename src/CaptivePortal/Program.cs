@@ -61,7 +61,7 @@ using (IServiceScope scope = host.Services.CreateScope())
 {
     CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
 
-    bool creatingDb = !db.Database.CanConnect();
+    bool creatingDb = db.Database.GetAppliedMigrations().Count() == 0;
 
     logger.LogInformation("Processing database migrations");
     db.Database.Migrate();

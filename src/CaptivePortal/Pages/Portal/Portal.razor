@@ -7,12 +7,11 @@
 @using Microsoft.EntityFrameworkCore
 @implements IDisposable
 @inject NavigationManager navigationManager
-@inject IServiceProvider serviceProvider
-@inject CaptivePortalDbContext db
 @inject RadiusDisconnectorService disconnector
 @inject IHttpContextAccessor httpContextAccessor
 @inject WebAuthenticationService webAuthService
 @inject ProtectedLocalStorage protectedLocalStorage
+@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
 
 <PageTitle>Captive Portal</PageTitle>
 
@@ -112,6 +111,8 @@ else
 
     private Timer? timer;
 
+    private CaptivePortalDbContext? db;
+
     protected override void OnAfterRender(bool firstRender)
     {
         if (!firstRender) return;
@@ -125,6 +126,7 @@ else
     public void Dispose()
     {
         timer?.Dispose();
+        db?.Dispose();
     }
 
     public void ReloadPage()
@@ -141,10 +143,9 @@ else
             if (DetectedIPAddress is null) return;
         }
 
-        using IServiceScope scope = serviceProvider.CreateScope();
-        CaptivePortalDbContext scopedDb = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
 
-        Device = await scopedDb.Devices
+        Device = await db.Devices
             .AsNoTracking()
             .Where(x => x.DetectedDeviceIpAddress == DetectedIPAddress.ToString())
             .FirstOrDefaultAsync();
@@ -181,6 +182,8 @@ else
 
         DateTime authorizedUntil = DateTime.UtcNow.AddHours(8);
 
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+
         await db.Devices
             .Where(x => x.Id == this.Device.Id)
             .ExecuteUpdateAsync(x => x
@@ -204,6 +207,8 @@ else
 
     private async Task RemoveDevice(Device device)
     {
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        
         await db.Devices
             .Where(x => x.Id == device.Id)
             .ExecuteDeleteAsync();

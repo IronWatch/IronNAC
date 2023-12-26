@@ -4,8 +4,9 @@
 @using CaptivePortal.Database
 @using CaptivePortal.Services
 @using Microsoft.EntityFrameworkCore
-@inject CaptivePortalDbContext db
+@implements IDisposable
 @inject RadiusDisconnectorService disconnector
+@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
 
 <PageTitle>Admin > Devices</PageTitle>
 
@@ -26,6 +27,13 @@
 @code {
     private List<Device> devices = new();
 
+    private CaptivePortalDbContext? db;
+
+    public void Dispose()
+    {
+        db?.Dispose();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -35,6 +43,8 @@
 
     private async Task RefreshData()
     {
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+
         devices = await db.Devices
             .AsNoTracking()
             .ToListAsync();
@@ -44,6 +54,8 @@
 
     private async Task RemoveDevice(Device device)
     {       
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        
         await db.Devices
             .Where(x => x.Id == device.Id)
             .ExecuteDeleteAsync();

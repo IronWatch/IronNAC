@@ -1,7 +1,6 @@
 ﻿using CaptivePortal.Database.Entities;
 using CaptivePortal.Services;
 using Microsoft.EntityFrameworkCore;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace CaptivePortal.Database
 {
@@ -28,7 +27,7 @@ namespace CaptivePortal.Database
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite(configuration.GetConnectionString("Database"));
+            optionsBuilder.UseNpgsql(configuration.GetConnectionString("Database"));
         }
 
         public async Task SeedDatabase(CancellationToken cancellationToken = default)

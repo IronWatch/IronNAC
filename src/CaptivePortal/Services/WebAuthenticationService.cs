@@ -8,13 +8,12 @@ namespace CaptivePortal.Services
 {
     public class WebAuthenticationService
     {
-        private readonly CaptivePortalDbContext db;
+        private readonly IDbContextFactory<CaptivePortalDbContext> dbFactory;
         private static readonly Sodium.PasswordHash.StrengthArgon strength = Sodium.PasswordHash.StrengthArgon.Interactive;
 
-        public WebAuthenticationService(
-            CaptivePortalDbContext db)
+        public WebAuthenticationService(IDbContextFactory<CaptivePortalDbContext> dbFactory)
         {
-            this.db = db;
+            this.dbFactory = dbFactory;
         }
         
         public async Task<bool> ValidateLoginAsync(
@@ -24,6 +23,8 @@ namespace CaptivePortal.Services
         {
             if (email is null || password is null) return false;
             email = email.ToLowerInvariant();
+
+            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
             
             string? hash = await db.Users
                 .AsNoTracking()
@@ -45,6 +46,8 @@ namespace CaptivePortal.Services
         {
             if (email is null || oldPassword is null || newPassword is null) return false;
             email = email.ToLowerInvariant();
+
+            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             User? user = await db.Users
                 .AsNoTracking()
@@ -68,6 +71,8 @@ namespace CaptivePortal.Services
 
             string newHash = GetHash(password);
 
+            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
             int modified = await db.Users
                 .Where(x => x.Email == email)
                 .ExecuteUpdateAsync(x => x
@@ -90,6 +95,8 @@ namespace CaptivePortal.Services
             result.Success = await ValidateLoginAsync(email, password);
             if (!result.Success) return result;
             email = email?.ToLowerInvariant();
+
+            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             User? user = await db.Users
                 .AsNoTracking()
@@ -174,6 +181,8 @@ namespace CaptivePortal.Services
             {
                 return null;
             }
+
+            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             UserSession? userSession = await db.UserSessions
                 .Include(x => x.User)

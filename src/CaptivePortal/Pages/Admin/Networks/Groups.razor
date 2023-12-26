@@ -3,9 +3,10 @@
 @using CaptivePortal.Database
 @using CaptivePortal.Database.Entities
 @using Microsoft.EntityFrameworkCore
+@implements IDisposable
 @layout AdminLayout
-@inject CaptivePortalDbContext db
 @inject NavigationManager nav
+@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
 
 <PageTitle>Admin > Networks Groups</PageTitle>
 
@@ -100,6 +101,13 @@
     private Dictionary<int, int> networkGroupCapacity = new();
     private Dictionary<int, int> networkGroupUsage = new();
 
+    private CaptivePortalDbContext? db;
+
+    public void Dispose()
+    {
+        db?.Dispose();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -111,6 +119,8 @@
 
     private async Task Refresh()
     {
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+
         networkGroups = await db.NetworkGroups
             .Include(x => x.Networks)
             .OrderByDescending(x => x.Registration)
@@ -154,6 +164,8 @@
     {
         if (newNetworkGroup is null) return;
 
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+
         db.NetworkGroups.Add(newNetworkGroup);
         await db.SaveChangesAsync();
 
@@ -167,6 +179,8 @@
     {
         if (editNetworkGroup is null) return;
 
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
+
         await db.SaveChangesAsync();
 
         editNetworkGroup = null;
@@ -178,6 +192,8 @@
     private async Task DeleteNetworkGroup()
     {
         if (editNetworkGroup is null) return;
+
+        if (db is null) db = await dbFactory.CreateDbContextAsync();
 
         db.Remove(editNetworkGroup);
         await db.SaveChangesAsync();

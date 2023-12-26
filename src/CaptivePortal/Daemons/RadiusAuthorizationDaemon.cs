@@ -129,6 +129,7 @@ namespace CaptivePortal.Daemons
                                         if (device.DeviceNetwork is not null)
                                         {
                                             db.Remove(device.DeviceNetwork);
+                                            // TODO Concurrency issue here where affecting 0 rows instead of 1
                                             await db.SaveChangesAsync(cancellationToken);
                                         }
 

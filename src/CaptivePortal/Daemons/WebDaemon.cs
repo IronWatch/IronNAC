@@ -84,8 +84,6 @@ namespace CaptivePortal.Daemons
 
                 builder.Services.AddHttpContextAccessor();
 
-                builder.Services.AddDbContext<CaptivePortalDbContext>();
-
                 WebApplication app = builder.Build();
 
                 List<string> hostWhitelist = builder.Configuration

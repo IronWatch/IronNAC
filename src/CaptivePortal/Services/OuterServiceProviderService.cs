@@ -1,5 +1,6 @@
 ﻿using CaptivePortal.Daemons;
 using CaptivePortal.Database;
+using Microsoft.EntityFrameworkCore;
 
 namespace CaptivePortal.Services
 {
@@ -24,6 +25,9 @@ namespace CaptivePortal.Services
         public WebAuthenticationService WebAuthenticationService
             => OuterServiceProvider.GetRequiredService<WebAuthenticationService>();
 
+        public IDbContextFactory<CaptivePortalDbContext> DbContextFactory
+            => OuterServiceProvider.GetRequiredService<IDbContextFactory<CaptivePortalDbContext>>();
+
         public WebDaemon WebDaemon
             => OuterServiceProvider.GetRequiredService<WebDaemon>();
 
@@ -45,6 +49,8 @@ namespace CaptivePortal.Services
             services.AddSingleton<RadiusAttributeParserService>();
 
             services.AddScoped<WebAuthenticationService>();
+
+            services.AddDbContextFactory<CaptivePortalDbContext>();
 
             services.AddHostedService<WebDaemon>();
 
@@ -68,6 +74,9 @@ namespace CaptivePortal.Services
 
             services.AddScoped(sp
                 => sp.GetRequiredService<OuterServiceProviderService>().WebAuthenticationService);
+
+            services.AddSingleton(sp
+                => sp.GetRequiredService<OuterServiceProviderService>().DbContextFactory);
 
             // Accessing hosted services must be through the Outer Service Provider Service itself
             // otherwise a nesting loop of hosted services will be launched

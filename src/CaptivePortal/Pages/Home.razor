@@ -11,7 +11,8 @@
 @inject WebAuthenticationService webAuth
 @inject ProtectedLocalStorage protectedLocalStorage
 @inject IHttpContextAccessor httpContextAccessor
-@inject CaptivePortalDbContext db
+@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
+@implements IDisposable
 
 <PageTitle>IronNAC</PageTitle>
 
@@ -65,8 +66,17 @@ else
 
     public Dictionary<Type, bool> Daemons { get; set; } = new();
 
+    private CaptivePortalDbContext? db;
+
+    public void Dispose()
+    {
+        db?.Dispose();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (db is null) db = dbFactory.CreateDbContext();
+        
         if (!firstRender) return;
 
         DetectedIPAddress = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
