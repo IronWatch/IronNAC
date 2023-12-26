@@ -1,17 +1,9 @@
 ﻿@page "/"
-@using CaptivePortal.Daemons
-@using CaptivePortal.Database
-@using CaptivePortal.Database.Entities
-@using CaptivePortal.Models
-@using CaptivePortal.Services
-@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
-@using System.Net
-@using Microsoft.EntityFrameworkCore
 @inject NavigationManager nav
 @inject WebAuthenticationService webAuth
 @inject ProtectedLocalStorage protectedLocalStorage
 @inject IHttpContextAccessor httpContextAccessor
-@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
+@inject IDbContextFactory<IronNacDbContext> dbFactory
 @implements IDisposable
 
 <PageTitle>IronNAC</PageTitle>
@@ -66,7 +58,7 @@ else
 
     public Dictionary<Type, bool> Daemons { get; set; } = new();
 
-    private CaptivePortalDbContext? db;
+    private IronNacDbContext? db;
 
     public void Dispose()
     {

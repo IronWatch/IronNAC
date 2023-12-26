@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(IronNacDbContext))]
-    [Migration("20231226041414_Initial")]
-    partial class Initial
+    [Migration("20231226121012_ExplicitForeignKeys")]
+    partial class ExplicitForeignKeys
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -51,7 +51,7 @@ namespace CaptivePortal.Database.Migrations
                     b.Property<string>("DeviceMac")
                         .HasColumnType("text");
 
-                    b.Property<int?>("DeviceNetworkId")
+                    b.Property<int>("DeviceNetworkId")
                         .HasColumnType("integer");
 
                     b.Property<string>("NasIdentifier")
@@ -67,6 +67,8 @@ namespace CaptivePortal.Database.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceNetworkId");
 
                     b.HasIndex("UserId");
 
@@ -89,8 +91,7 @@ namespace CaptivePortal.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DeviceId")
-                        .IsUnique();
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("NetworkId");
 
@@ -242,9 +243,17 @@ namespace CaptivePortal.Database.Migrations
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
                 {
+                    b.HasOne("CaptivePortal.Database.Entities.DeviceNetwork", "DeviceNetwork")
+                        .WithMany()
+                        .HasForeignKey("DeviceNetworkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CaptivePortal.Database.Entities.User", "User")
                         .WithMany("Devices")
                         .HasForeignKey("UserId");
+
+                    b.Navigation("DeviceNetwork");
 
                     b.Navigation("User");
                 });
@@ -252,8 +261,8 @@ namespace CaptivePortal.Database.Migrations
             modelBuilder.Entity("CaptivePortal.Database.Entities.DeviceNetwork", b =>
                 {
                     b.HasOne("CaptivePortal.Database.Entities.Device", "Device")
-                        .WithOne("DeviceNetwork")
-                        .HasForeignKey("CaptivePortal.Database.Entities.DeviceNetwork", "DeviceId")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -307,11 +316,6 @@ namespace CaptivePortal.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
-                {
-                    b.Navigation("DeviceNetwork");
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Network", b =>

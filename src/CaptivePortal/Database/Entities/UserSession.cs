@@ -1,9 +1,12 @@
-﻿namespace CaptivePortal.Database.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace CaptivePortal.Database.Entities
 {
     public class UserSession
     {
         public int Id { get; set; }
 
+        [ForeignKey(nameof(User))]
         public int UserId { get; set; }
         private User? _user;
         public User User

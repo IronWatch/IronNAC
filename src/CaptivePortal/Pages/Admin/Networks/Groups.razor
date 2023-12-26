@@ -1,12 +1,8 @@
 ﻿@page "/admin/networks"
-@using CaptivePortal.Components.Admin
-@using CaptivePortal.Database
-@using CaptivePortal.Database.Entities
-@using Microsoft.EntityFrameworkCore
-@implements IDisposable
 @layout AdminLayout
 @inject NavigationManager nav
-@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
+@inject IDbContextFactory<IronNacDbContext> dbFactory
+@inject DataRefreshNotificationService dataRefresh
 
 <PageTitle>Admin > Networks Groups</PageTitle>
 
@@ -101,25 +97,23 @@
     private Dictionary<int, int> networkGroupCapacity = new();
     private Dictionary<int, int> networkGroupUsage = new();
 
-    private CaptivePortalDbContext? db;
-
-    public void Dispose()
-    {
-        db?.Dispose();
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        await Refresh();
+        dataRefresh.NetworkUsageNotification += async (sender, eventArgs) =>
+        {
+            await Refresh();
+            await InvokeAsync(StateHasChanged);
+        };
 
+        await Refresh();
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task Refresh()
     {
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
 
         networkGroups = await db.NetworkGroups
             .Include(x => x.Networks)
@@ -164,44 +158,42 @@
     {
         if (newNetworkGroup is null) return;
 
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
 
         db.NetworkGroups.Add(newNetworkGroup);
         await db.SaveChangesAsync();
 
         newNetworkGroup = null;
 
-        await Refresh();
-        await InvokeAsync(StateHasChanged);
+        dataRefresh.NetworkUsageNotify();
     }
 
     private async Task UpdateNetworkGroup()
     {
         if (editNetworkGroup is null) return;
 
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
 
+        db.Update(editNetworkGroup);
         await db.SaveChangesAsync();
 
         editNetworkGroup = null;
 
-        await Refresh();
-        await InvokeAsync(StateHasChanged);
+        dataRefresh.NetworkUsageNotify();
     }
 
     private async Task DeleteNetworkGroup()
     {
         if (editNetworkGroup is null) return;
 
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
 
         db.Remove(editNetworkGroup);
         await db.SaveChangesAsync();
 
         editNetworkGroup = null;
 
-        await Refresh();
-        await InvokeAsync(StateHasChanged);
+        dataRefresh.NetworkUsageNotify();
     }
 
 }

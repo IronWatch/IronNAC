@@ -1,10 +1,10 @@
 ﻿using CaptivePortal.Database.Entities;
-using CaptivePortal.Services;
+using CaptivePortal.Services.Outer;
 using Microsoft.EntityFrameworkCore;
 
 namespace CaptivePortal.Database
 {
-    public class CaptivePortalDbContext : DbContext
+    public class IronNacDbContext : DbContext
     {
         public DbSet<User> Users { get; set; }
         public DbSet<Device> Devices { get; set; }
@@ -17,9 +17,9 @@ namespace CaptivePortal.Database
         private readonly IConfiguration configuration;
         private readonly ILogger logger;
 
-        public CaptivePortalDbContext(
+        public IronNacDbContext(
             IConfiguration configuration, 
-            ILogger<CaptivePortalDbContext> logger)
+            ILogger<IronNacDbContext> logger)
         {
             this.configuration = configuration;
             this.logger = logger;

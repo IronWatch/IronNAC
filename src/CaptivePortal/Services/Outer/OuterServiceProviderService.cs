@@ -2,7 +2,7 @@
 using CaptivePortal.Database;
 using Microsoft.EntityFrameworkCore;
 
-namespace CaptivePortal.Services
+namespace CaptivePortal.Services.Outer
 {
     public class OuterServiceProviderService
     {
@@ -10,12 +10,12 @@ namespace CaptivePortal.Services
 
         public OuterServiceProviderService(IServiceProvider outerSP)
         {
-            this.OuterServiceProvider = outerSP;
+            OuterServiceProvider = outerSP;
         }
 
         public AppArgsService AppArgsService
             => OuterServiceProvider.GetRequiredService<AppArgsService>();
-        
+
         public RadiusDisconnectorService RadiusDisconnectorService
             => OuterServiceProvider.GetRequiredService<RadiusDisconnectorService>();
 
@@ -25,8 +25,11 @@ namespace CaptivePortal.Services
         public WebAuthenticationService WebAuthenticationService
             => OuterServiceProvider.GetRequiredService<WebAuthenticationService>();
 
-        public IDbContextFactory<CaptivePortalDbContext> DbContextFactory
-            => OuterServiceProvider.GetRequiredService<IDbContextFactory<CaptivePortalDbContext>>();
+        public IDbContextFactory<IronNacDbContext> DbContextFactory
+            => OuterServiceProvider.GetRequiredService<IDbContextFactory<IronNacDbContext>>();
+
+        public DataRefreshNotificationService DataRefreshNotificationService
+            => OuterServiceProvider.GetRequiredService<DataRefreshNotificationService>();
 
         public WebDaemon WebDaemon
             => OuterServiceProvider.GetRequiredService<WebDaemon>();
@@ -50,7 +53,9 @@ namespace CaptivePortal.Services
 
             services.AddScoped<WebAuthenticationService>();
 
-            services.AddDbContextFactory<CaptivePortalDbContext>();
+            services.AddDbContextFactory<IronNacDbContext>();
+
+            services.AddSingleton(new DataRefreshNotificationService());
 
             services.AddHostedService<WebDaemon>();
 
@@ -64,10 +69,10 @@ namespace CaptivePortal.Services
         public void RegisterServicesInChild(IServiceCollection services)
         {
             services.AddSingleton(this);
-            
+
             services.AddSingleton(AppArgsService);
 
-            services.AddTransient(sp 
+            services.AddTransient(sp
                 => sp.GetRequiredService<OuterServiceProviderService>().RadiusDisconnectorService);
 
             services.AddSingleton(RadiusAttributeParserService);
@@ -77,6 +82,8 @@ namespace CaptivePortal.Services
 
             services.AddSingleton(sp
                 => sp.GetRequiredService<OuterServiceProviderService>().DbContextFactory);
+
+            services.AddSingleton(DataRefreshNotificationService);
 
             // Accessing hosted services must be through the Outer Service Provider Service itself
             // otherwise a nesting loop of hosted services will be launched

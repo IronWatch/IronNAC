@@ -5,7 +5,7 @@ using LettuceEncrypt.Acme;
 using System.Diagnostics;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace CaptivePortal.Services
+namespace CaptivePortal.Services.Dns
 {
     public class PublicDnsChallengeProvider : IDnsChallengeProvider
     {
@@ -34,10 +34,10 @@ namespace CaptivePortal.Services
                 secretKey,
                 Amazon.RegionEndpoint.GetBySystemName(region));
         }
-        
+
         public async Task<DnsTxtRecordContext> AddTxtRecordAsync(
-            string domainName, 
-            string txt, 
+            string domainName,
+            string txt,
             CancellationToken cancellationToken = default)
         {
             ResourceRecordSet recordSet = new(domainName, RRType.TXT);
@@ -54,7 +54,7 @@ namespace CaptivePortal.Services
         }
 
         public async Task RemoveTxtRecordAsync(
-            DnsTxtRecordContext context, 
+            DnsTxtRecordContext context,
             CancellationToken cancellationToken = default)
         {
             string domainName = context.DomainName;
@@ -102,7 +102,7 @@ namespace CaptivePortal.Services
                     logger.LogInformation("Checking Change Info");
                     GetChangeResponse changeResponse = await route53.GetChangeAsync(new GetChangeRequest(response.ChangeInfo.Id), cancellationToken);
                     inSync = changeResponse.ChangeInfo.Status == ChangeStatus.INSYNC;
-                    
+
                     if (inSync)
                     {
                         logger.LogInformation("Change is INSYNC");

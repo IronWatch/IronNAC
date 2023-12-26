@@ -11,6 +11,7 @@ namespace CaptivePortal.Database.Entities
         public int Vlan { get; set; }
         public int Capacity { get; set; }
 
+        [ForeignKey(nameof(NetworkGroup))]
         public int NetworkGroupId { get; set; }
         private NetworkGroup? _networkGroup;
         public NetworkGroup NetworkGroup

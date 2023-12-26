@@ -1,14 +1,21 @@
-﻿namespace CaptivePortal.Database.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace CaptivePortal.Database.Entities
 {
     public class Device
     {
         public int Id { get; set; }
 
+        [ForeignKey(nameof(User))]
         public int? UserId { get; set; }
         public User? User { get; set; }
 
-        public int? DeviceNetworkId { get; set; }
-        public DeviceNetwork? DeviceNetwork { get; set; }
+        private DeviceNetwork? _deviceNetwork;
+        public DeviceNetwork DeviceNetwork
+        {
+            get => _deviceNetwork ?? throw new InvalidOperationException();
+            set => _deviceNetwork = value;
+        }
 
         public string? NickName { get; set; }
 

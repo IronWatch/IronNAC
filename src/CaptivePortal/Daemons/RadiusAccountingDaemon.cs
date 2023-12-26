@@ -7,7 +7,7 @@ using Radius.RadiusAttributes;
 using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
 using Microsoft.EntityFrameworkCore;
-using CaptivePortal.Services;
+using CaptivePortal.Services.Outer;
 
 namespace CaptivePortal.Daemons
 {
@@ -15,7 +15,8 @@ namespace CaptivePortal.Daemons
         IConfiguration configuration,
         ILogger<RadiusAccountingDaemon> logger,
         RadiusAttributeParserService parser,
-        IServiceProvider serviceProvider) 
+        IDbContextFactory<IronNacDbContext> dbFactory,
+        DataRefreshNotificationService dataRefresh) 
         : BaseDaemon<RadiusAccountingDaemon>(
             configuration,
             logger)
@@ -23,9 +24,7 @@ namespace CaptivePortal.Daemons
         protected override async Task EntryPoint(CancellationToken cancellationToken)
         {
             UdpClient? udpClient = null;
-            IServiceScope? scope = null;
             byte[] secret;
-            CaptivePortalDbContext db;
 
             try
             {
@@ -39,8 +38,6 @@ namespace CaptivePortal.Daemons
                     secret = Encoding.ASCII.GetBytes(secretString);
 
                     udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 1813));
-                    scope = serviceProvider.CreateScope();
-                    db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
                 }
                 catch (Exception ex)
                 {
@@ -68,6 +65,8 @@ namespace CaptivePortal.Daemons
                             Console.WriteLine(radEx.Message);
                             continue;
                         }
+
+                        using IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
                         switch (incoming.Code)
                         {
@@ -105,6 +104,8 @@ namespace CaptivePortal.Daemons
 
                                 await db.SaveChangesAsync(cancellationToken);
 
+                                dataRefresh.DeviceDetailsNotify();
+
                                 break;
 
                             default:
@@ -121,7 +122,6 @@ namespace CaptivePortal.Daemons
             finally
             {
                 udpClient?.Dispose();
-                scope?.Dispose();
             }
         }
     }

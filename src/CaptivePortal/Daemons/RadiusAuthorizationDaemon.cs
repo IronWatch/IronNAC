@@ -7,9 +7,9 @@ using Radius.RadiusAttributes;
 using CaptivePortal.Database;
 using Microsoft.EntityFrameworkCore;
 using CaptivePortal.Database.Entities;
-using CaptivePortal.Services;
 using static System.Formats.Asn1.AsnWriter;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using CaptivePortal.Services.Outer;
 
 namespace CaptivePortal.Daemons
 {
@@ -17,7 +17,8 @@ namespace CaptivePortal.Daemons
         IConfiguration configuration,
         ILogger<RadiusAuthorizationDaemon> logger,
         RadiusAttributeParserService parser,
-        IServiceProvider serviceProvider)
+        IDbContextFactory<IronNacDbContext> dbFactory,
+        DataRefreshNotificationService dataRefresh)
         : BaseDaemon<RadiusAuthorizationDaemon>(
             configuration,
             logger)
@@ -25,9 +26,7 @@ namespace CaptivePortal.Daemons
         protected override async Task EntryPoint(CancellationToken cancellationToken)
         {
             UdpClient? udpClient = null;
-            IServiceScope? scope = null;
             byte[] secret;
-            CaptivePortalDbContext db;
 
             try
             {
@@ -41,8 +40,6 @@ namespace CaptivePortal.Daemons
                     secret = Encoding.ASCII.GetBytes(secretString);
 
                     udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 1812));
-                    scope = serviceProvider.CreateScope();
-                    db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
                 }
                 catch (Exception ex)
                 {
@@ -72,6 +69,8 @@ namespace CaptivePortal.Daemons
                         }
                         RadiusPacket response;
 
+                        using IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
                         switch (incoming.Code)
                         {
                             case RadiusCode.ACCESS_REQUEST:
@@ -95,22 +94,11 @@ namespace CaptivePortal.Daemons
                                     .Where(x => x.DeviceMac == mac)
                                     .FirstOrDefaultAsync(cancellationToken);
 
-                                if (device is null)
+                                if (device is null ||
+                                    !device.Authorized ||
+                                    device.AuthorizedUntil <= DateTime.UtcNow)
                                 {
-                                    device = new Device()
-                                    {
-                                        DeviceMac = mac
-                                    };
-
-                                    db.Add(device);
-                                    await db.SaveChangesAsync(cancellationToken);
-                                }
-
-                                if (!device.Authorized ||
-                                    device.AuthorizedUntil <= DateTime.UtcNow ||
-                                    device.DeviceNetwork is null)
-                                {
-                                    // Not Authorized or missing a network assignment so go to registration
+                                    // New Device, Not Authorized or missing a network assignment so go to registration
                                     
                                     // Get Registration Network with spare capacity
                                     Network? registrationNetwork = await db.Networks
@@ -125,30 +113,49 @@ namespace CaptivePortal.Daemons
                                     }
                                     else
                                     {
-                                        // Reassign device to this registration network
-                                        if (device.DeviceNetwork is not null)
+                                        try
                                         {
-                                            db.Remove(device.DeviceNetwork);
-                                            // TODO Concurrency issue here where affecting 0 rows instead of 1
-                                            await db.SaveChangesAsync(cancellationToken);
-                                        }
+                                            if (device is null)
+                                            {
+                                                // New Device
+                                                device = new()
+                                                {
+                                                    DeviceMac = mac,
+                                                    DeviceNetwork = new()
+                                                    {
+                                                        NetworkId = registrationNetwork.Id
+                                                    }
+                                                };
 
-                                        DeviceNetwork newDeviceNetwork = new()
+                                                db.Add(device);
+                                                await db.SaveChangesAsync(cancellationToken);
+                                            }
+                                            else
+                                            {
+                                                // Authorization Expired
+                                                // Kick off current device assignment and give a new one just to be safe
+                                                device.DeviceNetwork.Network = registrationNetwork;
+
+                                                db.Update(device);
+
+                                                await db.SaveChangesAsync(cancellationToken);
+
+                                            }
+
+                                            response = RadiusPacket
+                                                .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
+                                                .AddAttribute(new TunnelTypeAttribute(0,
+                                                    TunnelTypeAttribute.TunnelTypes.VLAN))
+                                                .AddAttribute(new TunnelMediumTypeAttribute(0,
+                                                    TunnelMediumTypeAttribute.Values.IEEE_802))
+                                                .AddAttribute(new TunnelPrivateGroupIdAttribute(0,
+                                                    registrationNetwork.Vlan.ToString()));
+                                        }
+                                        catch (DbUpdateConcurrencyException)
                                         {
-                                            DeviceId = device.Id,
-                                            NetworkId = registrationNetwork.Id
-                                        };
-                                        db.Add(newDeviceNetwork);
-                                        await db.SaveChangesAsync(cancellationToken);
-                                        
-                                        response = RadiusPacket
-                                            .Create(RadiusCode.ACCESS_ACCEPT, incoming.Identifier)
-                                            .AddAttribute(new TunnelTypeAttribute(0, 
-                                                TunnelTypeAttribute.TunnelTypes.VLAN))
-                                            .AddAttribute(new TunnelMediumTypeAttribute(0, 
-                                                TunnelMediumTypeAttribute.Values.IEEE_802))
-                                            .AddAttribute(new TunnelPrivateGroupIdAttribute(0, 
-                                                registrationNetwork.Vlan.ToString()));
+                                            response = RadiusPacket
+                                                .Create(RadiusCode.ACCESS_REJECT, incoming.Identifier);
+                                        }
                                     }
                                 }
                                 else
@@ -173,6 +180,10 @@ namespace CaptivePortal.Daemons
                                     response.ToBytes(),
                                     udpReceiveResult.RemoteEndPoint,
                                     cancellationToken);
+
+                                dataRefresh.DeviceDetailsNotify();
+                                dataRefresh.NetworkUsageNotify();
+
                                 break;
 
                             default:
@@ -189,7 +200,6 @@ namespace CaptivePortal.Daemons
             finally 
             { 
                 udpClient?.Dispose();
-                scope?.Dispose();
             }
         }
     }

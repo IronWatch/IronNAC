@@ -1,13 +1,14 @@
 ﻿using CaptivePortal.Components;
 using CaptivePortal.Database.Entities;
 using CaptivePortal.Database;
-using CaptivePortal.Services;
 using LettuceEncrypt.Acme;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Hosting;
 using System.Net;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
+using CaptivePortal.Services.Outer;
+using CaptivePortal.Services.Dns;
 
 namespace CaptivePortal.Daemons
 {

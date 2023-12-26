@@ -1,7 +1,7 @@
 ﻿using CaptivePortal.Daemons;
 using System.Reflection.Metadata.Ecma335;
 
-namespace CaptivePortal.Services
+namespace CaptivePortal.Services.Outer
 {
     public class DaemonInteractionService(
         OuterServiceProviderService outerSP)
@@ -54,7 +54,7 @@ namespace CaptivePortal.Services
             if (result is null)
                 throw new InvalidOperationException();
 
-            return result;  
+            return result;
         }
 
         public async Task<bool> Restart<T>(CancellationToken cancellationToken = default) where T : BaseDaemon<T>

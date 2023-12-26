@@ -15,6 +15,7 @@ namespace CaptivePortal.Database.Entities
             get => _device ?? throw new InvalidOperationException();
         }
 
+        [ForeignKey(nameof(Network))]
         public int NetworkId { get; set; }
         private Network? _network;
         public Network Network

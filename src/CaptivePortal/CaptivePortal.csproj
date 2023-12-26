@@ -22,4 +22,8 @@
     <PackageReference Include="Sodium.Core" Version="1.3.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Services\Web\" />
+  </ItemGroup>
+
 </Project>

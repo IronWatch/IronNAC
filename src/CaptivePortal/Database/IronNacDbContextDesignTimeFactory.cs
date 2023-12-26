@@ -3,22 +3,22 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace CaptivePortal.Database
 {
-    public class CaptivePortalDbContextDesignTimeFactory
-        : IDesignTimeDbContextFactory<CaptivePortalDbContext>
+    public class IronNacDbContextDesignTimeFactory
+        : IDesignTimeDbContextFactory<IronNacDbContext>
     {
-        public CaptivePortalDbContext CreateDbContext(string[] args)
+        public IronNacDbContext CreateDbContext(string[] args)
         {
             IConfiguration configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false)
                 .Build();
 
-            ILogger<CaptivePortalDbContext> logger = LoggerFactory.Create(l => l
+            ILogger<IronNacDbContext> logger = LoggerFactory.Create(l => l
                 .SetMinimumLevel(LogLevel.Trace)
                 .AddConsole())
-                .CreateLogger<CaptivePortalDbContext>();
+                .CreateLogger<IronNacDbContext>();
 
-            return new CaptivePortalDbContext(configuration, logger);
+            return new IronNacDbContext(configuration, logger);
         }
     }
 }

@@ -1,67 +1,250 @@
 ﻿@page "/admin/devices"
 @layout AdminLayout
-@using CaptivePortal.Database.Entities
-@using CaptivePortal.Database
-@using CaptivePortal.Services
-@using Microsoft.EntityFrameworkCore
-@implements IDisposable
 @inject RadiusDisconnectorService disconnector
-@inject IDbContextFactory<CaptivePortalDbContext> dbFactory
+@inject IDbContextFactory<IronNacDbContext> dbFactory
+@inject DataRefreshNotificationService dataRefresh
+@inject RadiusDisconnectorService disconnector
 
 <PageTitle>Admin > Devices</PageTitle>
 
-<div class="container-sm" >
+<div class="container-sm" style="max-width: 720px;">
     <h1 class="text-center mt-sm-4">Devices</h1>
-    <div>
+
+    <hr />
+
+    @if (newDevice is not null)
+    {
+        <div class="card p-3 mt-4">
+            <h3 class="text-center">New Device</h3>
+            <EditDevice Device="newDevice"
+                CreatingNew="true"
+                OnSubmit="CreateDevice" 
+                OnCancel="@(_ => newDevice = null)"/>
+        </div>
+    }
+    else if (editDevice is not null)
+    {
+        <div class="card p-3 mt-4">
+            <h3 class="text-center">Edit Device</h3>
+            <EditDevice
+                Device="editDevice"
+                CreatingNew="false"
+                OnSubmit="UpdateDevice"
+                OnCancel="@(_ => editDevice = null)" />
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column flex-sm-row justify-content-center">
+            <button class="btn btn-primary" @onclick="@(async _ => await NewDevice())">New Device</button>
+        </div>
+
         @foreach (Device device in devices)
         {
-            <div class="card">
-                <h5>@device.DeviceMac</h5>
-                <span>Authorized: @device.AuthorizedUntil</span>
-                <button class="btn btn-danger" @onclick="@(async _ => await RemoveDevice(device))">Remove DeviceS</button>
+            <div class="card p-3 mt-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between">
+                    @if (device.NickName is not null && device.UserId is not null)
+                    {
+                        <h3>@(userNames.GetValueOrDefault(device.UserId.Value))&apos;s @device.NickName</h3>
+                    }
+                    else if (device.NickName is not null)
+                    {
+                        <h3>@device.NickName</h3>
+                    }
+                    else if (device.UserId is not null)
+                    {
+                        <h3>@(userNames.GetValueOrDefault(device.UserId.Value))&apos;s device</h3>
+                    }
+                    else
+                    {
+                        <h3>Unnamed Device</h3>
+                    }
+                    <h5 class="mb-0"><code>@device.DeviceMac</code></h5>
+                </div>
+                <p class="my-1">
+                    Detected IP: <code>@device.DetectedDeviceIpAddress</code><br />
+                    Authorized: <code>@(!device.Authorized ? "Not Authorized" : device.AuthorizedUntil is null ? "Forever" : device.AuthorizedUntil.ToString())</code><br />
+
+                    @if (device.UserId is not null)
+                    {
+                        <span>
+                            User: <code>@userEmails.GetValueOrDefault(device.UserId.Value)</code><br />
+                        </span>
+                    }
+
+                    @if (device.DeviceNetwork is not null)
+                    {
+                        <span>
+                            Network Group: <code>@networkGroupNamesByNetworkId.GetValueOrDefault(device.DeviceNetwork.NetworkId)</code><br />
+                            Network: <code>@networkNames.GetValueOrDefault(device.DeviceNetwork.NetworkId)</code><br />
+                        </span>
+                    }
+                </p>
+
+                <div class="d-flex flex-column flex-sm-row justify-content-end mt-2">
+                    <button class="btn btn-info" @onclick="@(_ => editDevice = device)">Edit Device</button>
+                    <button class="btn btn-danger ms-0 ms-sm-2 mt-2 mt-sm-0" @onclick="@(async _ => await DeleteDevice(device))">Revoke Authorization</button>
+                </div>
             </div>
         }
-    </div>
+    }
 </div>
 
 @code {
     private List<Device> devices = new();
+    private Dictionary<int, string> networkGroupNamesByNetworkId = new();
+    private Dictionary<int, string> networkNames = new();
+    private Dictionary<int, string> userNames = new();
+    private Dictionary<int, string> userEmails = new();
 
-    private CaptivePortalDbContext? db;
-
-    public void Dispose()
-    {
-        db?.Dispose();
-    }
+    private Device? newDevice;
+    private Device? editDevice;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        await RefreshData();
-    }
+        dataRefresh.DeviceDetailsNotification += async (sender, eventArgs) =>
+        {
+            await Refresh();
+            await InvokeAsync(StateHasChanged);
+        };
 
-    private async Task RefreshData()
-    {
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
-
-        devices = await db.Devices
-            .AsNoTracking()
-            .ToListAsync();
-
+        await Refresh();
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task RemoveDevice(Device device)
+    private async Task Refresh()
+    {
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
+
+        devices = await db.Devices
+            .AsNoTracking()
+            .Include(x => x.DeviceNetwork)
+            .ToListAsync();
+
+        networkGroupNamesByNetworkId = (await db.Networks
+            .Select(x => new KeyValuePair<int, string>(x.Id, x.NetworkGroup.Name))
+            .ToListAsync())
+            .ToDictionary();
+
+        networkNames = (await db.Networks
+            .Select(x => new KeyValuePair<int, string>(x.Id, x.Name))
+            .ToListAsync())
+            .ToDictionary();
+
+        userNames = (await db.Users
+            .Select(x => new KeyValuePair<int, string>(x.Id, x.Name))
+            .ToListAsync())
+            .ToDictionary();
+
+        userEmails = (await db.Users
+            .Select(x => new KeyValuePair<int, string>(x.Id, x.Email))
+            .ToListAsync())
+            .ToDictionary();
+    }
+
+    private async Task DeleteDevice(Device device)
     {       
-        if (db is null) db = await dbFactory.CreateDbContextAsync();
-        
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
+
         await db.Devices
             .Where(x => x.Id == device.Id)
             .ExecuteDeleteAsync();
 
-        _ = await disconnector.Disconnect(device);
+        dataRefresh.DeviceDetailsNotify();
+        dataRefresh.NetworkUsageNotify();
 
-        await RefreshData();
+        await disconnector.Disconnect(device);
+    }
+
+    private async Task NewDevice()
+    {
+        newDevice = new Device();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CreateDevice(EditDeviceSubmitModel result)
+    {
+        if (newDevice is null) return;
+
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
+
+        if (result.Network is null && !result.NetworkGroup.IsPool) return;
+        else if (result.Network is null)
+        {
+            result.Network = await db.Networks
+                .Where(x => x.NetworkGroupId == result.NetworkGroup.Id)
+                .Where(x => x.DeviceNetworks.Count < x.Capacity)
+                .FirstOrDefaultAsync();
+        }
+        if (result.Network is null) return;
+
+        newDevice.Authorized = true;
+        newDevice.AuthorizedUntil = result.AuthorizeForever ? null : DateTime.UtcNow.AddDays(30);
+
+        newDevice.DeviceNetwork = new()
+        {
+            Device = newDevice,
+            Network = result.Network
+        };
+
+        db.Add(newDevice);
+        await db.SaveChangesAsync();
+
+        newDevice = null;
+
+        dataRefresh.DeviceDetailsNotify();
+        dataRefresh.NetworkUsageNotify();
+    }
+
+    private async Task UpdateDevice(EditDeviceSubmitModel result)
+    {
+        if (editDevice is null) return;
+
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
+
+        if (result.Network is null && !result.NetworkGroup.IsPool) return;
+        else if (result.Network is null)
+        {
+            result.Network = await db.Networks
+                .Where(x => x.NetworkGroupId == result.NetworkGroup.Id)
+                .Where(x => x.DeviceNetworks.Count < x.Capacity)
+                .FirstOrDefaultAsync();
+        }
+        if (result.Network is null) return;
+
+        editDevice.Authorized = true;
+        editDevice.AuthorizedUntil = result.AuthorizeForever ? null : DateTime.UtcNow.AddDays(30);
+
+        DeviceNetwork? oldDeviceNetwork = await db.DeviceNetworks
+            .Where(x => x.Id == editDevice.DeviceNetwork.Id)
+            .FirstOrDefaultAsync();
+        if (oldDeviceNetwork is null) return;
+
+        bool disconnect = false;
+        if (oldDeviceNetwork.NetworkId != result.Network.Id)
+        {
+            db.Remove(oldDeviceNetwork);
+            editDevice.DeviceNetwork = new()
+            {
+                Device = editDevice,
+                Network = result.Network
+            };
+
+            disconnect = true;
+        }
+
+        db.Update(editDevice);
+        await db.SaveChangesAsync();
+
+        if (disconnect)
+        {
+            await disconnector.Disconnect(editDevice);
+        }
+
+        editDevice = null;
+        dataRefresh.NetworkUsageNotify();
+        dataRefresh.NetworkUsageNotify();
     }
 }

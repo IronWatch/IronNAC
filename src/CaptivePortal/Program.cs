@@ -3,12 +3,12 @@ using CaptivePortal.Components;
 using CaptivePortal.Database;
 using CaptivePortal.Database.Entities;
 using CaptivePortal.Daemons;
-using CaptivePortal.Services;
 using LettuceEncrypt.Acme;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
+using CaptivePortal.Services.Outer;
 
 // Hotpath shortcut as we use the design time factory to build the dbcontext for a migration
 // ef will still try and start up the application as part of detecting things, needlessly calling most of our startup code
@@ -50,7 +50,7 @@ builder.ConfigureServices(services =>
      * from within the child's service provider.
     */
     OuterServiceProviderService.RegisterServicesInParent(services, args);
-    services.AddDbContext<CaptivePortalDbContext>();
+    services.AddDbContext<IronNacDbContext>();
 });
 
 IHost host = builder.Build();
@@ -59,7 +59,7 @@ IHost host = builder.Build();
 // TODO move seed data to its own class
 using (IServiceScope scope = host.Services.CreateScope())
 {
-    CaptivePortalDbContext db = scope.ServiceProvider.GetRequiredService<CaptivePortalDbContext>();
+    IronNacDbContext db = scope.ServiceProvider.GetRequiredService<IronNacDbContext>();
 
     bool creatingDb = db.Database.GetAppliedMigrations().Count() == 0;
 

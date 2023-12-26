@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Radius.RadiusAttributes;
 using Microsoft.Extensions.Configuration;
 
-namespace CaptivePortal.Services
+namespace CaptivePortal.Services.Outer
 {
     public class RadiusDisconnectorService
     {
@@ -56,7 +56,7 @@ namespace CaptivePortal.Services
                 .AddAttribute(new AccountingSessionIdAttribute(accountingSessionId));
 
             disconnect.ReplaceAuthenticator(disconnect.CalculateAuthenticator(secret));
-            
+
             using UdpClient udpClient = new();
             await udpClient.SendAsync(
                 disconnect.ToBytes(),

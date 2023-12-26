@@ -4,28 +4,28 @@ using CaptivePortal.Models;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.EntityFrameworkCore;
 
-namespace CaptivePortal.Services
+namespace CaptivePortal.Services.Outer
 {
     public class WebAuthenticationService
     {
-        private readonly IDbContextFactory<CaptivePortalDbContext> dbFactory;
+        private readonly IDbContextFactory<IronNacDbContext> dbFactory;
         private static readonly Sodium.PasswordHash.StrengthArgon strength = Sodium.PasswordHash.StrengthArgon.Interactive;
 
-        public WebAuthenticationService(IDbContextFactory<CaptivePortalDbContext> dbFactory)
+        public WebAuthenticationService(IDbContextFactory<IronNacDbContext> dbFactory)
         {
             this.dbFactory = dbFactory;
         }
-        
+
         public async Task<bool> ValidateLoginAsync(
-            string? email, 
-            string? password, 
+            string? email,
+            string? password,
             CancellationToken cancellationToken = default)
         {
             if (email is null || password is null) return false;
             email = email.ToLowerInvariant();
 
-            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            
+            IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
             string? hash = await db.Users
                 .AsNoTracking()
                 .Where(x => x.Email == email)
@@ -47,7 +47,7 @@ namespace CaptivePortal.Services
             if (email is null || oldPassword is null || newPassword is null) return false;
             email = email.ToLowerInvariant();
 
-            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             User? user = await db.Users
                 .AsNoTracking()
@@ -71,7 +71,7 @@ namespace CaptivePortal.Services
 
             string newHash = GetHash(password);
 
-            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             int modified = await db.Users
                 .Where(x => x.Email == email)
@@ -80,7 +80,7 @@ namespace CaptivePortal.Services
                     .SetProperty(p => p.ChangePasswordNextLogin, changePasswordNextLogin)
                 , cancellationToken);
 
-            return (modified > 0); // TODO error reporting if modifying more than 1
+            return modified > 0; // TODO error reporting if modifying more than 1
         }
 
         public static string GetHash(string password)
@@ -96,7 +96,7 @@ namespace CaptivePortal.Services
             if (!result.Success) return result;
             email = email?.ToLowerInvariant();
 
-            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             User? user = await db.Users
                 .AsNoTracking()
@@ -151,7 +151,8 @@ namespace CaptivePortal.Services
                 try
                 {
                     await protectedLocalStorage.DeleteAsync(nameof(AccessToken));
-                } catch(Exception) { }
+                }
+                catch (Exception) { }
                 return null;
             }
 
@@ -182,7 +183,7 @@ namespace CaptivePortal.Services
                 return null;
             }
 
-            CaptivePortalDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             UserSession? userSession = await db.UserSessions
                 .Include(x => x.User)

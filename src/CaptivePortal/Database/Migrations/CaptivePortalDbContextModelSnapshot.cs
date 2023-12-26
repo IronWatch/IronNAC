@@ -10,7 +10,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace CaptivePortal.Database.Migrations
 {
-    [DbContext(typeof(CaptivePortalDbContext))]
+    [DbContext(typeof(IronNacDbContext))]
     partial class CaptivePortalDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
@@ -47,9 +47,6 @@ namespace CaptivePortal.Database.Migrations
 
                     b.Property<string>("DeviceMac")
                         .HasColumnType("text");
-
-                    b.Property<int?>("DeviceNetworkId")
-                        .HasColumnType("integer");
 
                     b.Property<string>("NasIdentifier")
                         .HasColumnType("text");
@@ -308,7 +305,8 @@ namespace CaptivePortal.Database.Migrations
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Device", b =>
                 {
-                    b.Navigation("DeviceNetwork");
+                    b.Navigation("DeviceNetwork")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CaptivePortal.Database.Entities.Network", b =>

@@ -1,4 +1,4 @@
-﻿namespace CaptivePortal.Services
+﻿namespace CaptivePortal.Services.Outer
 {
     public class AppArgsService
     {
@@ -6,7 +6,7 @@
 
         public AppArgsService(string[] args)
         {
-            this.Args = args;
+            Args = args;
         }
     }
 }
