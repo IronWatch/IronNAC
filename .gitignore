@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Local ENV configuration
+.env
+
 # User-specific files
 *.rsuser
 *.suo
@@ -361,8 +364,3 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-app.db
-app.db-shm
-app.db-wal
-appsettings.json
-/src/CaptivePortal/.env
