@@ -1,6 +1,8 @@
 ﻿using CaptivePortal.Database.Entities;
 using CaptivePortal.Services.Outer;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Data.Common;
 
 namespace CaptivePortal.Database
 {
@@ -14,11 +16,11 @@ namespace CaptivePortal.Database
         public DbSet<NetworkGroup> NetworkGroups { get; set; }
         public DbSet<UserNetworkGroup> UserNetworkGroups { get; set; }
 
-        private readonly IConfiguration configuration;
+        private readonly IronNacConfiguration configuration;
         private readonly ILogger logger;
 
         public IronNacDbContext(
-            IConfiguration configuration, 
+            IronNacConfiguration configuration, 
             ILogger<IronNacDbContext> logger)
         {
             this.configuration = configuration;
@@ -27,7 +29,14 @@ namespace CaptivePortal.Database
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql(configuration.GetConnectionString("Database"));
+            NpgsqlConnectionStringBuilder csb = new();
+            csb.Host = configuration.DatabaseHostname;
+            csb.Port = configuration.DatabasePort;
+            csb.Database = configuration.DatabaseDbName;
+            csb.Username = configuration.DatabaseUsername;
+            csb.Password = configuration.DatabasePassword;
+
+            optionsBuilder.UseNpgsql(csb.ToString());
         }
 
         public async Task SeedDatabase(CancellationToken cancellationToken = default)

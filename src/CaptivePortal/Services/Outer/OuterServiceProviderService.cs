@@ -16,6 +16,9 @@ namespace CaptivePortal.Services.Outer
         public AppArgsService AppArgsService
             => OuterServiceProvider.GetRequiredService<AppArgsService>();
 
+        public IronNacConfiguration IronNacConfiguration
+            => OuterServiceProvider.GetRequiredService<IronNacConfiguration>();
+
         public RadiusDisconnectorService RadiusDisconnectorService
             => OuterServiceProvider.GetRequiredService<RadiusDisconnectorService>();
 
@@ -43,9 +46,20 @@ namespace CaptivePortal.Services.Outer
         public RadiusAccountingDaemon RadiusAccountingDaemon
             => OuterServiceProvider.GetRequiredService<RadiusAccountingDaemon>();
 
-        public static void RegisterServicesInParent(IServiceCollection services, string[] appArgs)
+        public static bool RegisterServicesInParent(IServiceCollection services, ILogger logger, string[] appArgs)
         {
             services.AddSingleton(new AppArgsService(appArgs));
+
+            try
+            {
+                services.AddSingleton(new IronNacConfiguration());
+            }
+            catch (AggregateException ex)
+            {
+                logger.LogCritical(ex.Message);
+
+                return false;
+            }
 
             services.AddTransient<RadiusDisconnectorService>();
 
@@ -64,6 +78,8 @@ namespace CaptivePortal.Services.Outer
             services.AddHostedService<RadiusAuthorizationDaemon>();
 
             services.AddHostedService<RadiusAccountingDaemon>();
+
+            return true;
         }
 
         public void RegisterServicesInChild(IServiceCollection services)
@@ -71,6 +87,8 @@ namespace CaptivePortal.Services.Outer
             services.AddSingleton(this);
 
             services.AddSingleton(AppArgsService);
+
+            services.AddSingleton(IronNacConfiguration);
 
             services.AddTransient(sp
                 => sp.GetRequiredService<OuterServiceProviderService>().RadiusDisconnectorService);
