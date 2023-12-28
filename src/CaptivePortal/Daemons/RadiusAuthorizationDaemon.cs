@@ -14,14 +14,12 @@ using CaptivePortal.Services.Outer;
 namespace CaptivePortal.Daemons
 {
     public class RadiusAuthorizationDaemon(
-        IConfiguration configuration,
+        IronNacConfiguration configuration,
         ILogger<RadiusAuthorizationDaemon> logger,
         RadiusAttributeParserService parser,
         IDbContextFactory<IronNacDbContext> dbFactory,
         DataRefreshNotificationService dataRefresh)
-        : BaseDaemon<RadiusAuthorizationDaemon>(
-            configuration,
-            logger)
+        : BaseDaemon<RadiusAuthorizationDaemon>(logger)
     {
         protected override async Task EntryPoint(CancellationToken cancellationToken)
         {
@@ -32,14 +30,11 @@ namespace CaptivePortal.Daemons
             {
                 try
                 {
-                    string listenAddress = Configuration.GetValue<string>("Radius:ListenAddress")
-                        ?? throw new MissingFieldException("Radius:ListenAddress");
+                    secret = Encoding.ASCII.GetBytes(configuration.RadiusAuthorizationSecret);
 
-                    string? secretString = Configuration.GetValue<string>("Radius:AuthorizationSecret")
-                        ?? throw new MissingFieldException("Radius:AuthorizationSecret");
-                    secret = Encoding.ASCII.GetBytes(secretString);
-
-                    udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 1812));
+                    udpClient = new(new IPEndPoint(
+                        IPAddress.Parse(configuration.RadiusAuthorizationListenAddress), 
+                        configuration.RadiusAuthorizationPort));
                 }
                 catch (Exception ex)
                 {

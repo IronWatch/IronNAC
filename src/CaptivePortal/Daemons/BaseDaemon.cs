@@ -5,7 +5,6 @@ namespace CaptivePortal.Daemons
 {
     public abstract class BaseDaemon<T> : BackgroundService where T : BaseDaemon<T>
     {
-        protected readonly IConfiguration Configuration;
         protected readonly ILogger Logger;
 
         protected CancellationTokenSource StoppingTokenSource = new();
@@ -16,9 +15,8 @@ namespace CaptivePortal.Daemons
 
         protected TimeSpan StopTimeout = TimeSpan.FromSeconds(60);
 
-        public BaseDaemon(IConfiguration configuration, ILogger logger)
+        public BaseDaemon(ILogger logger)
         {
-            this.Configuration = configuration;
             this.Logger = logger;
         }
 

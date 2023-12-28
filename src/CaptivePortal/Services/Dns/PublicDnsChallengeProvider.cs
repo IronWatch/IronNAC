@@ -1,38 +1,39 @@
 ﻿using Amazon.Route53;
 using Amazon.Route53.Model;
 using Amazon.Runtime;
+using CaptivePortal.Services.Outer;
 using LettuceEncrypt.Acme;
 using System.Diagnostics;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace CaptivePortal.Services.Dns
 {
     public class PublicDnsChallengeProvider : IDnsChallengeProvider
     {
-        private readonly AmazonRoute53Client route53;
-        private readonly string hostedZoneId;
+        private readonly AmazonRoute53Client? route53;
+        private readonly string? hostedZoneId;
         private readonly ILogger logger;
 
-        public PublicDnsChallengeProvider(IConfiguration configuration, ILogger<PublicDnsChallengeProvider> logger)
+        public bool Ready { get; private set; }
+
+        public PublicDnsChallengeProvider(IronNacConfiguration configuration, ILogger<PublicDnsChallengeProvider> logger)
         {
             this.logger = logger;
 
-            hostedZoneId = configuration.GetValue<string>("PublicDnsApi:AwsSettings:HostedZoneId")
-                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:HostedZoneId");
+            if (string.IsNullOrWhiteSpace(configuration.AwsAccessToken) ||
+                string.IsNullOrWhiteSpace(configuration.AwsSecretKey) ||
+                string.IsNullOrWhiteSpace(configuration.AwsRegion) ||
+                string.IsNullOrWhiteSpace(configuration.AwsHostedZoneId))
+            {
+                Ready = false;
+                return;
+            }
 
-            string accessToken = configuration.GetValue<string>("PublicDnsApi:AwsSettings:AccessToken")
-                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:AccessToken");
-
-            string secretKey = configuration.GetValue<string>("PublicDnsApi:AwsSettings:SecretKey")
-                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:SecretKey");
-
-            string region = configuration.GetValue<string>("PublicDnsApi:AwsSettings:Region")
-                ?? throw new MissingFieldException("PublicDnsApi:AwsSettings:Region");
+            hostedZoneId = configuration.AwsHostedZoneId;
 
             route53 = new(
-                accessToken,
-                secretKey,
-                Amazon.RegionEndpoint.GetBySystemName(region));
+                configuration.AwsAccessToken,
+                configuration.AwsSecretKey,
+                Amazon.RegionEndpoint.GetBySystemName(configuration.AwsRegion));
         }
 
         public async Task<DnsTxtRecordContext> AddTxtRecordAsync(
@@ -40,6 +41,8 @@ namespace CaptivePortal.Services.Dns
             string txt,
             CancellationToken cancellationToken = default)
         {
+            if (route53 is null) throw new InvalidOperationException();
+            
             ResourceRecordSet recordSet = new(domainName, RRType.TXT);
             recordSet.ResourceRecords.Add(new ResourceRecord($"\"{txt}\""));
             recordSet.TTL = 300;
@@ -57,6 +60,8 @@ namespace CaptivePortal.Services.Dns
             DnsTxtRecordContext context,
             CancellationToken cancellationToken = default)
         {
+            if (route53 is null) throw new InvalidOperationException();
+
             string domainName = context.DomainName;
             if (!domainName.ToLower().StartsWith("_acme-challenge."))
             {
@@ -76,6 +81,8 @@ namespace CaptivePortal.Services.Dns
 
         private async Task ExecuteChange(Change change, CancellationToken cancellationToken = default)
         {
+            if (route53 is null) throw new InvalidOperationException();
+
             try
             {
                 ChangeBatch batch = new ChangeBatch();

@@ -120,7 +120,7 @@ else
     {
         if (Device is null) return;
 
-        await protectedLocalStorage.SetAsync(nameof(Device), Device);
+        await protectedLocalStorage.SetAsync(nameof(Database.Entities.Device), Device.Id);
         navigationManager.NavigateTo("/portal/user");
     }
 
@@ -128,7 +128,7 @@ else
     {
         if (Device is null) return;
 
-        await protectedLocalStorage.SetAsync(nameof(Device), Device);
+        await protectedLocalStorage.SetAsync(nameof(Database.Entities.Device), Device.Id);
         navigationManager.NavigateTo("/portal/guest");
     }
 

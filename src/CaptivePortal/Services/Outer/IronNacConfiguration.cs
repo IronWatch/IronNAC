@@ -1,4 +1,5 @@
 ﻿using CaptivePortal.Helpers;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,6 +16,9 @@ namespace CaptivePortal.Services.Outer
 
         [Env("IRONNAC_WEB_HOSTNAME", optional: true)]
         public string? WebHostname { get; private set; }
+
+        [Env("IRONNAC_WEB_REDIRECT_DESTINATION")]
+        public string WebRedirectDestination { get; private set; } = null!;
 
         [EnvList("IRONNAC_WEB_REDIRECT_BYPASS_HOSTS", defaultValue: "")]
         public List<string> WebRedirectBypassHosts { get; private set; } = null!;
@@ -67,16 +71,16 @@ namespace CaptivePortal.Services.Outer
         [Env("IRONNAC_RADIUS_ACCOUNTING_SECRET")]
         public string RadiusAccountingSecret { get; set; } = null!;
 
-        [Env("IRONNAC_AWS_ACCESS_TOKEN")]
+        [Env("IRONNAC_AWS_ACCESS_TOKEN", optional: true)]
         public string? AwsAccessToken { get; set; }
 
-        [Env("IRONNAC_AWS_SECRET_KEY")]
+        [Env("IRONNAC_AWS_SECRET_KEY", optional: true)]
         public string? AwsSecretKey { get; set; }
 
-        [Env("IRONNAC_AWS_REGION")]
+        [Env("IRONNAC_AWS_REGION", optional: true)]
         public string? AwsRegion { get; set; }
 
-        [Env("IRONNAC_AWS_HOSTED_ZONE_ID")]
+        [Env("IRONNAC_AWS_HOSTED_ZONE_ID", optional: true)]
         public string? AwsHostedZoneId { get; set; }
 
         [Env("IRONNAC_DNS_LISTEN_ADDRESS")]
@@ -87,5 +91,23 @@ namespace CaptivePortal.Services.Outer
 
         [Env("IRONNAC_DNS_REDIRECT_ADDRESS")]
         public string DnsRedirectAddress { get; set; } = null!;
+
+        [MemberNotNullWhen(true, [
+            nameof(WebHostname),
+            nameof(WebHttpsCertEmail),
+            nameof(AwsAccessToken),
+            nameof(AwsSecretKey),
+            nameof(AwsRegion),
+            nameof(AwsHostedZoneId)
+        ])]
+        public bool AllHttpsRequirementsMet =>
+            (WebUseHttps &&
+            !string.IsNullOrEmpty(WebHostname) &&
+            !string.IsNullOrWhiteSpace(WebHttpsCertEmail) &&
+            !string.IsNullOrWhiteSpace(AwsAccessToken) &&
+            !string.IsNullOrWhiteSpace(AwsSecretKey) &&
+            !string.IsNullOrWhiteSpace(AwsRegion) &&
+            !string.IsNullOrWhiteSpace(AwsHostedZoneId));
+            
     }
 }

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
 using CaptivePortal.Services.Outer;
 using System.CommandLine;
+using static System.Formats.Asn1.AsnWriter;
 
 // Hotpath shortcut as we use the design time factory to build the dbcontext for a migration
 // ef will still try and start up the application as part of detecting things, needlessly calling most of our startup code
@@ -80,13 +81,13 @@ rootCommand.SetHandler(async (envOptionValue) =>
 
     if (!servicesSuccess) return;
 
-    // Database is created / updated here and optionally seeded.
-    // TODO move seed data to its own class
-    using (IServiceScope scope = host.Services.CreateScope())
+    try
     {
-        IronNacDbContext db = scope.ServiceProvider.GetRequiredService<IronNacDbContext>();
+        using IronNacDbContext db = await host.Services
+            .GetRequiredService<IDbContextFactory<IronNacDbContext>>()
+            .CreateDbContextAsync();
 
-        bool creatingDb = db.Database.GetAppliedMigrations().Count() == 0;
+        bool creatingDb = !db.Database.GetAppliedMigrations().Any();
 
         logger.LogInformation("Processing database migrations");
         db.Database.Migrate();
@@ -95,6 +96,12 @@ rootCommand.SetHandler(async (envOptionValue) =>
         {
             await db.SeedDatabase();
         }
+
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical("Startup connection to the Database failed! {message}", ex.Message);
+        return;
     }
 
     await host.RunAsync();

@@ -1,5 +1,5 @@
 ﻿@inherits LayoutComponentBase
-@inject IConfiguration configuration
+@inject IronNacConfiguration configuration
 
 <AuthenticateUser>
     <div class="w-100 d-flex justify-content-center p-2">
@@ -15,7 +15,7 @@
 
             <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
 
-            @if (IsUsingStagingCertificates == true)
+            @if (configuration.WebHttpsCertStaging)
             {
                 <div class="alert alert-warning" role="alert">
                     <p>Using the Lets Encrypt Staging Environment. This should only be done while testing and should be disabled for production!</p>
@@ -28,10 +28,4 @@
 </AuthenticateUser>
 
 @code {
-    public bool? IsUsingStagingCertificates { get; set; }
-
-    protected override void OnInitialized()
-    {
-        IsUsingStagingCertificates = configuration.GetValue<bool>("LettuceEncrypt:UseStagingServer");
-    }
 }

@@ -6,16 +6,15 @@ using Radius;
 using Radius.RadiusAttributes;
 using DNS.ResourceRecords;
 using DNS;
+using CaptivePortal.Services.Outer;
 
 namespace CaptivePortal.Daemons
 {
-    public class DnsDaemon : BaseDaemon<DnsDaemon>
+    public class DnsDaemon(
+        IronNacConfiguration configuration, 
+        ILogger<DnsDaemon> logger)
+        : BaseDaemon<DnsDaemon>(logger)
     {
-        public readonly Guid guid = Guid.NewGuid();
-        
-        public DnsDaemon(IConfiguration configuration, ILogger<DnsDaemon> logger)
-            : base(configuration, logger) { }
-
         protected override async Task EntryPoint(CancellationToken cancellationToken)
         {
             IPAddress redirectAddress;
@@ -27,14 +26,9 @@ namespace CaptivePortal.Daemons
                 // Thread startup error checking
                 try
                 {
-                    string listenAddress = Configuration.GetValue<string>("DnsServer:ListenAddress")
-                        ?? throw new MissingFieldException("DnsServer:ListenAddress");
+                    redirectAddress = IPAddress.Parse(configuration.DnsRedirectAddress);
 
-                    string redirectAddressString = Configuration.GetValue<string>("DnsServer:RedirectAddress")
-                        ?? throw new MissingFieldException("DnsServer:RedirectAddress");
-                    redirectAddress = IPAddress.Parse(redirectAddressString);
-
-                    udpClient = new(new IPEndPoint(IPAddress.Parse(listenAddress), 53));
+                    udpClient = new(new IPEndPoint(IPAddress.Parse(configuration.DnsListenAddress), configuration.DnsPort));
                 }
                 catch (Exception ex)
                 {

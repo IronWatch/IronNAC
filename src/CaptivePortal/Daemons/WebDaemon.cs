@@ -13,72 +13,83 @@ using CaptivePortal.Services.Dns;
 namespace CaptivePortal.Daemons
 {
     public class WebDaemon(
-        IConfiguration configuration,
+        IronNacConfiguration configuration,
         ILogger<WebDaemon> logger,
         AppArgsService appArgsService,
         IServiceProvider outerServiceProvider) 
-        : BaseDaemon<WebDaemon>(configuration, logger)
+        : BaseDaemon<WebDaemon>(logger)
     {
         protected override async Task EntryPoint(CancellationToken cancellationToken)
         {
             try
             {
+                if (configuration.WebUseHttps &&
+                    !configuration.AllHttpsRequirementsMet)
+                {
+                    logger.LogWarning("HTTPS is enabled, however not all of the HTTPS required environment variables are set! HTTPS will not be enabled!");
+                }
+                
                 WebApplicationBuilder builder = WebApplication.CreateBuilder(appArgsService.Args);
-
-                string hostName = builder.Configuration.GetValue<string>("CaptivePortal:HostName")
-                    ?? throw new MissingFieldException("CaptivePortal:HostName");
-
-                List<string> listenAddresses = builder.Configuration.GetSection("CaptivePortal:ListenAddresses")
-                    .Get<string[]>()
-                    ?.ToList()
-                    ?? throw new MissingFieldException("CaptivePortal:ListenAddresses");
 
                 builder.WebHost.UseKestrel(kestrel =>
                 {
-                    foreach (string address in listenAddresses)
+                    foreach (string address in configuration.WebListenAddresses)
                     {
-                        kestrel.Listen(IPAddress.Parse(address), 80);
-                        kestrel.Listen(IPAddress.Parse(address), 443, listenOpts =>
+                        kestrel.Listen(IPAddress.Parse(address), configuration.WebHttpPort);
+
+                        if (configuration.AllHttpsRequirementsMet)
                         {
-                            listenOpts.UseHttps(https =>
+                            kestrel.Listen(IPAddress.Parse(address), configuration.WebHttpsPort, listenOpts =>
                             {
-                                https.UseLettuceEncrypt(kestrel.ApplicationServices);
+                                listenOpts.UseHttps(https =>
+                                {
+                                    https.UseLettuceEncrypt(kestrel.ApplicationServices);
+                                });
                             });
-                        });
+                        }
                     }
                 });
 
                 OuterServiceProviderService outerSpService = new(outerServiceProvider);
                 outerSpService.RegisterServicesInChild(builder.Services);
 
-                builder.Services.AddLettuceEncrypt(async opts =>
+                if (configuration.AllHttpsRequirementsMet)
                 {
-                    if (opts.UseStagingServer)
+                    builder.Services.AddLettuceEncrypt(async opts =>
                     {
-                        Logger.LogInformation("Using the Lets Encrypt staging environment. Checking for stage root certs!");
-
-                        List<string> stageRootCertUris = builder.Configuration.GetSection("LetsEncrypt:StageRootCerts")
-                            .Get<string[]>()
-                            ?.ToList()
-                            ?? throw new MissingFieldException("LetsEncrypt:StageRootCerts");
-                        List<string> stageRootCertContents = new();
-
-                        using HttpClient issuersHttpClient = new();
-
-                        foreach (string stageRootCertUri in stageRootCertUris)
+                        opts.AcceptTermsOfService = true;
+                        opts.AllowedChallengeTypes = ChallengeType.Dns01;
+                        opts.DomainNames = [configuration.WebHostname];
+                        opts.EmailAddress = configuration.WebHttpsCertEmail;
+                        
+                        if (opts.UseStagingServer)
                         {
-                            Logger.LogInformation("Downloading Lets Encrypt Staging Certificate: {uri}", stageRootCertUri);
-                            stageRootCertContents.Add(await issuersHttpClient.GetStringAsync(stageRootCertUri));
-                        }
+                            Logger.LogInformation("Using the Lets Encrypt staging environment. Checking for stage root certs!");
 
-                        opts.AdditionalIssuers = stageRootCertContents.ToArray();
-                    }
-                });
-                builder.Services.Replace(
-                    new ServiceDescriptor(
-                        typeof(IDnsChallengeProvider), 
-                        typeof(PublicDnsChallengeProvider), 
-                        ServiceLifetime.Singleton));
+                            List<string> stageRootCertUris = builder.Configuration.GetSection("LetsEncrypt:StageRootCerts")
+                                .Get<string[]>()
+                                ?.ToList()
+                                ?? throw new MissingFieldException("LetsEncrypt:StageRootCerts");
+                            List<string> stageRootCertContents = new();
+
+                            using HttpClient issuersHttpClient = new();
+
+                            foreach (string stageRootCertUri in stageRootCertUris)
+                            {
+                                Logger.LogInformation("Downloading Lets Encrypt Staging Certificate: {uri}", stageRootCertUri);
+                                stageRootCertContents.Add(await issuersHttpClient.GetStringAsync(stageRootCertUri));
+                            }
+
+                            opts.AdditionalIssuers = stageRootCertContents.ToArray();
+                        }
+                    });
+
+                    builder.Services.Replace(
+                        new ServiceDescriptor(
+                            typeof(IDnsChallengeProvider),
+                            typeof(PublicDnsChallengeProvider),
+                            ServiceLifetime.Singleton));
+                }
 
                 builder.Services.AddRazorComponents()
                     .AddInteractiveServerComponents();
@@ -87,11 +98,11 @@ namespace CaptivePortal.Daemons
 
                 WebApplication app = builder.Build();
 
-                List<string> hostWhitelist = builder.Configuration
-                    .GetSection("CaptivePortal:HostRedirectionBypass")
-                    .Get<string[]>()
-                    ?.ToList()
-                    ?? throw new MissingFieldException("CaptivePortal:HostRedirectionBypass");
+                List<string> hostWhitelist = new();
+                hostWhitelist.AddRange(configuration.WebListenAddresses);
+                hostWhitelist.AddRange(configuration.WebRedirectBypassHosts);
+                if (!string.IsNullOrWhiteSpace(configuration.WebHostname))
+                    hostWhitelist.Add(configuration.WebHostname);
 
                 app.Use(async (context, next) =>
                 {
@@ -100,18 +111,21 @@ namespace CaptivePortal.Daemons
                     {
                         context.Response.StatusCode = 302;
                         context.Response.Headers["Location"] 
-                            = $"http://{hostName}/portal?redirect={context.Request.GetEncodedUrl()}";
+                            = $"http://{configuration.WebRedirectDestination}/portal?redirect={context.Request.GetEncodedUrl()}";
                         return;
                     }
 
-                    // If we're accessing via fqdn and not https redirect to https
-                    if (context.Request.Scheme == "http" && context.Request.Host.Host == hostName)
+                    if (configuration.AllHttpsRequirementsMet)
                     {
-                        string redirectLocation = context.Request.GetEncodedUrl();
-                        redirectLocation = $"https{redirectLocation.AsSpan().Slice(4)}";
-                        context.Response.StatusCode = 302;
-                        context.Response.Headers["Location"] = redirectLocation;
-                        return;
+                        // If we're accessing via fqdn and not https, upgrade connection to https
+                        if (context.Request.Scheme == "http" && context.Request.Host.Host == configuration.WebRedirectDestination)
+                        {
+                            string redirectLocation = context.Request.GetEncodedUrl();
+                            redirectLocation = $"https{redirectLocation.AsSpan().Slice(4)}";
+                            context.Response.StatusCode = 302;
+                            context.Response.Headers["Location"] = redirectLocation;
+                            return;
+                        }
                     }
 
                     await next(context);

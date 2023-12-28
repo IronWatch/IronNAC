@@ -130,9 +130,20 @@
 
         if (!firstRender) return;
 
-        var deviceResult = await protectedLocalStorage.GetAsync<Device>(nameof(Device));
-        device = deviceResult.Value;
-        if (!deviceResult.Success || device is null)
+        var deviceResult = await protectedLocalStorage.GetAsync<int>(nameof(Database.Entities.Device));
+        if (!deviceResult.Success)
+        {
+            navigationManager.NavigateTo("/portal");
+            return;
+        }
+
+        using IronNacDbContext db = await dbFactory.CreateDbContextAsync();
+
+        device = await db.Devices
+            .AsNoTracking()
+            .Where(x => x.Id == deviceResult.Value)
+            .FirstOrDefaultAsync();
+        if (device is null)
         {
             navigationManager.NavigateTo("/portal");
             return;

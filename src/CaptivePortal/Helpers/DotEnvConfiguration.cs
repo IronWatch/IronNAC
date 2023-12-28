@@ -64,14 +64,22 @@ namespace CaptivePortal.Helpers
                 string rawValue = line.Substring(seperatorPosition + 1).Trim();
 
                 string value = string.Empty;
-                Match quotedValueMatch = EnvQuotedValueRegex().Match(value);
+                Match quotedValueMatch = EnvQuotedValueRegex().Match(rawValue);
                 if (quotedValueMatch.Success && quotedValueMatch.Groups.Count > 0)
                 {
-                    value = quotedValueMatch.Groups[0].Value;
-
-                    if (rawValue.Length > value.Length)
+                    // Work backwards through the groups to find the one that matched
+                    // Plug that regex into regex101 for help
+                    // Group 0 = with quotes
+                    // Group 1/2/3 = without quotes depending on which quote was used '/"/`
+                    for (int i = quotedValueMatch.Groups.Count - 1; i >= 0; i--)
                     {
-                        string afterQuotes = rawValue.Substring(value.Length).Trim();
+                        value = quotedValueMatch.Groups[i].Value;
+                        if (!string.IsNullOrWhiteSpace(value)) break;
+                    }
+
+                    if (rawValue.Length > (value.Length + 2))
+                    {
+                        string afterQuotes = rawValue.Substring(value.Length + 2).Trim();
 
                         if (afterQuotes.Length > 0 &&
                             afterQuotes[0] != '#')
@@ -80,7 +88,7 @@ namespace CaptivePortal.Helpers
                         }
                     }
                 }
-                else if (EnvValueFirstCharQuote().Match(value).Success)
+                else if (EnvValueFirstCharQuote().Match(rawValue).Success)
                 {
                     throw new FormatException($"Missing end quotes on line {lineNumber}");
                 }

@@ -16,11 +16,9 @@ namespace CaptivePortal.Services.Outer
         private byte lastSentIdentifier = 0;
 
         public RadiusDisconnectorService(
-            IConfiguration configuration)
+            IronNacConfiguration configuration)
         {
-            string? secretString = configuration.GetValue<string>("Radius:AccountingSecret")
-                        ?? throw new MissingFieldException("Radius:AccountingSecret");
-            secret = Encoding.ASCII.GetBytes(secretString);
+            secret = Encoding.ASCII.GetBytes(configuration.RadiusAccountingSecret);
         }
 
         public Task<bool> Disconnect(Device device, CancellationToken cancellationToken = default)
