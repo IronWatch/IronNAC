@@ -9,30 +9,31 @@
 
 <PageTitle>IronNAC</PageTitle>
 
-@if (Device is not null && Device.Authorized)
-{
-    <h5>Your MAC Address:</h5>
-    <div class="w-100 d-flex">
-        <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
-        <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
-    </div>
-    <h5 class="text-center mt-3">
-        This device is authorized until<br/>
-        <code>@Device.AuthorizedUntil</code>
-    </h5>
-    <button class="btn btn-danger btn-lg mt-3" @onclick="@(async _ => { await Debounce(); await RemoveDevice(); })" disabled="@debounce">Remove Device Authorization</button>
-
-    <hr />
-}
-
 @if (AuthenticateUser?.AccessToken is null)
 {
+    @if (Device is not null && Device.Authorized)
+    {
+        <h5>Your MAC Address:</h5>
+        <div class="w-100 d-flex">
+            <input class="flex-grow-1 me-2 fs-4" type="text" value="@(Device.DeviceMac?.ToUpper())" disabled />
+            <button class="btn btn-outline-info"><span class="mdi mdi-content-copy mdi-24px"></span></button>
+        </div>
+        <h5 class="text-center mt-3">
+            This device is authorized until<br />
+            <code>@Device.AuthorizedUntil</code>
+        </h5>
+        <button class="btn btn-danger btn-lg mt-3" @onclick="@(async _ => { await Debounce(); await RemoveDevice(); })" disabled="@debounce">Remove Device Authorization</button>
+
+        <hr />
+    }
+    
     <button class="btn btn-primary btn-lg" @onclick="@(async _ => { await Debounce(); nav.NavigateTo("/login"); })" disabled="@debounce">Login</button>
 }
 else
 {
-    <h5 class="text-center">Hello @AuthenticateUser.AccessToken.Name</h5>
-    <button class="btn btn-primary btn-lg mt-1 mb-3" @onclick="@(async _ => {await Debounce(); nav.NavigateTo("/user/account");})" disabled="@debounce">My Account</button>
+    <h3 class="text-center">Hello @AuthenticateUser.AccessToken.Name</h3>
+    
+    <button class="btn btn-primary btn-lg mt-1 mb-3" @onclick="@(async _ => {await Debounce(); nav.NavigateTo("/user");})" disabled="@debounce">My Account</button>
 
     /*
     @if (AuthenticateUser.AccessToken.PermissionLevel >= PermissionLevel.Moderator)
@@ -63,6 +64,13 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+
+        if (AuthenticateUser?.AccessToken is not null &&
+            AuthenticateUser?.AccessToken.PermissionLevel == PermissionLevel.User)
+        {
+            nav.NavigateTo("/user");
+            return;
+        }
 
         DetectedIPAddress = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress;
 

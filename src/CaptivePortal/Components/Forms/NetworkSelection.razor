@@ -15,7 +15,7 @@
     }
     @foreach (NetworkGroup networkGroup in networkGroups)
     {
-        <div class="card p-3 mb-3" @onclick="@(_ => SelectNetworkGroup(networkGroup))">
+        <div class="card p-3 mb-3 user-select-none" @onclick="@(_ => SelectNetworkGroup(networkGroup))" style="cursor: pointer;">
             <h3>@networkGroup.Name</h3>
             @if (!string.IsNullOrWhiteSpace(networkGroup.Description))
             {
