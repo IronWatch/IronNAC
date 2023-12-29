@@ -6,6 +6,7 @@ namespace CaptivePortal.Database.Entities
     {
         public int Id { get; set; }
         public string Name { get; set; } = String.Empty;
+        public string? Description { get; set; }
         public string NetworkAddress { get; set; } = String.Empty;
         public string GatewayAddress { get; set; } = String.Empty;
         public int Vlan { get; set; }

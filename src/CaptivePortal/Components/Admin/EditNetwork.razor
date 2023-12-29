@@ -1,5 +1,6 @@
 ﻿@using CaptivePortal.Database.Entities
 @using System.Net
+@using System.Text.RegularExpressions
 
 @if (Network is not null)
 {
@@ -148,6 +149,11 @@
             capacityValidation is not null)
         {
             return;
+        }
+
+        if (Network.Description is not null)
+        {
+            Network.Description = Regex.Replace(Network.Description, @"\r\n?|\n", " ");
         }
 
         await ResetFocus(OnSubmit);

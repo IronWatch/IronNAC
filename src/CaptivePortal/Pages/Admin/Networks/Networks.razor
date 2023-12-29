@@ -50,6 +50,10 @@
                         <button class="d-none d-sm-block btn btn-warning" @onclick="@(_ => editNetwork = network)">Edit</button>
                     </div>
                 </div>
+                @if (!string.IsNullOrWhiteSpace(network.Description))
+                {
+                    <p class="mt-2 mb-1">@network.Description</p>
+                }
                 <p class="mt-2 mb-1">
                     Network Address: <code>@network.NetworkAddress</code><br />
                     Gateway Address: <code>@network.GatewayAddress</code><br />

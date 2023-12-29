@@ -9,5 +9,9 @@
         public event EventHandler? DeviceDetailsNotification;
         public void DeviceDetailsNotify()
             => DeviceDetailsNotification?.Invoke(this, EventArgs.Empty);
+
+        public event EventHandler? UserDetailsNotification;
+        public void UserDetailsNotify()
+            => UserDetailsNotification?.Invoke(this, EventArgs.Empty);
     }
 }

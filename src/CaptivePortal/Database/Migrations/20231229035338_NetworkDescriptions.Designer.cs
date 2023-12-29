@@ -3,6 +3,7 @@ using System;
 using CaptivePortal.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CaptivePortal.Database.Migrations
 {
     [DbContext(typeof(IronNacDbContext))]
-    partial class CaptivePortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231229035338_NetworkDescriptions")]
+    partial class NetworkDescriptions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -5,9 +5,9 @@ namespace CaptivePortal.Database.Entities
     public class User
     {
         public int Id { get; set; }
-        public required string Name { get; set; }
-        public required string Email { get; set; }
-        public required string Hash { get; set; }
+        public string Name { get; set; } = String.Empty;
+        public string Email { get; set; } = String.Empty;
+        public string Hash { get; set; } = String.Empty;
         public bool ChangePasswordNextLogin { get; set; }
         public PermissionLevel PermissionLevel { get; set; }
 

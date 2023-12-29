@@ -66,6 +66,10 @@
                         </div>
                     }
                 </div>
+                @if (!string.IsNullOrWhiteSpace(networkGroup.Description))
+                {
+                    <p class="mt-2 mb-1">@networkGroup.Description</p>
+                }
                 <p class="mt-2 mb-1">
                     Networks: <code>@networkGroup.Networks.Count</code><br />
                     <code>@(networkGroupUsage.GetValueOrDefault(networkGroup.Id))</code> of <code>@(networkGroupCapacity.GetValueOrDefault(networkGroup.Id))</code> addresses in use

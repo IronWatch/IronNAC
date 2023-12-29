@@ -11,17 +11,11 @@ using System.Net;
 using CaptivePortal.Services.Outer;
 using System.CommandLine;
 using static System.Formats.Asn1.AsnWriter;
-
-// Hotpath shortcut as we use the design time factory to build the dbcontext for a migration
-// ef will still try and start up the application as part of detecting things, needlessly calling most of our startup code
-if (EF.IsDesignTime)
-{
-    _ = WebApplication.CreateBuilder(args).Build();
-    return;
-}
+using CaptivePortal.Pages.Admin;
 
 Option<string> envOption = new("--env", "DotEnv formatted env file to load");
 RootCommand rootCommand = [envOption];
+rootCommand.TreatUnmatchedTokensAsErrors = false;
 
 rootCommand.SetHandler(async (envOptionValue) =>
 {
@@ -44,6 +38,22 @@ rootCommand.SetHandler(async (envOptionValue) =>
             logger.LogCritical(ex, "Failed to load Environment Variables!");
             return;
         }
+    }
+
+    // Hotpath shortcut as we use the design time factory to build the dbcontext for a migration
+    // ef will still try and start up the application as part of detecting things, needlessly calling most of our startup code
+    if (EF.IsDesignTime)
+    {
+        WebApplicationBuilder efDesignBuilder = WebApplication.CreateBuilder(args);
+        efDesignBuilder.Services.AddSingleton(new IronNacConfiguration());
+        efDesignBuilder.Services.AddDbContext<IronNacDbContext>();
+        try
+        {
+            _ = efDesignBuilder.Build();
+        }
+        catch (HostAbortedException) { } // EF Intentially aborts the host and throws this during design time
+
+        return;
     }
 
     HostBuilder builder = new();

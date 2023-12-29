@@ -7,12 +7,12 @@
 
 @if (AccessToken is null && !ChangePassword)
 {
-    <form @onsubmit="@(_ => TryLoginAsync())">
+    <form @onsubmit="@(async _ => {await Debounce(); await TryLoginAsync();})">
         <h5>Email Address:</h5>
-        <input class="w-100 me-2 fs-4 mb-3" type="email" @bind="Email" @ref="emailInputReference" autocapitalize="off" autocomplete="email"/>
+        <input class="w-100 me-2 fs-4 mb-3" type="email" @bind="Email" @ref="emailInputReference" autocapitalize="off" autocomplete="email" disabled="@debounce"/>
 
         <h5>Password:</h5>
-        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="Password" autocomplete="current-password"/>
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="Password" autocomplete="current-password" disabled="@debounce"/>
 
         @if (IncorrectLogin)
         {
@@ -21,8 +21,8 @@
             </div>
         }
 
-        <button class="d-block w-100 btn btn-primary btn-lg mt-2 mb-3">Login</button>
-        <button class="d-block w-100 btn btn-outline-info btn" type="button" @onclick="CancelLogin">Cancel Login</button>
+        <button class="d-block w-100 btn btn-primary btn-lg mt-2 mb-3" disabled="@debounce">Login</button>
+        <button class="d-block w-100 btn btn-outline-info btn" type="button" @onclick="@(async _ => {await Debounce(); CancelLogin();})" disabled="@debounce">Cancel Login</button>
     </form>
 }
 else if (AccessToken is not null && ChangePassword)
@@ -31,12 +31,12 @@ else if (AccessToken is not null && ChangePassword)
         Your password must be changed before you may continue!
     </div>
             
-    <form @onsubmit="@(_ => ChangePasswordAsync())">
+    <form @onsubmit="@(async _ => {await Debounce(); await ChangePasswordAsync();})">
         <h5>New Password:</h5>
-        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPassword" @ref="newPasswordReference" autocomplete="new-password"/>
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPassword" @ref="newPasswordReference" autocomplete="new-password" disabled="@debounce" />
 
         <h5>Confirm New Password:</h5>
-        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPasswordConfirm" autocomplete="new-password" />
+        <input class="w-100 me-2 fs-4 mb-3" type="password" @bind="NewPasswordConfirm" autocomplete="new-password" disabled="@debounce" />
 
         @if (ChangePasswordFailure is not null)
         {
@@ -45,7 +45,7 @@ else if (AccessToken is not null && ChangePassword)
             </div>
         }
 
-        <button class="d-block w-100 btn btn-primary btn-lg mt-2">Change Password</button>
+        <button class="d-block w-100 btn btn-primary btn-lg mt-2" disabled="@debounce">Change Password</button>
     </form>
 }
 
@@ -71,6 +71,13 @@ else if (AccessToken is not null && ChangePassword)
 
     private ElementReference emailInputReference;
     private ElementReference newPasswordReference;
+
+    private bool debounce;
+    public async Task Debounce()
+    {
+        debounce = true;
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -123,6 +130,9 @@ else if (AccessToken is not null && ChangePassword)
 
             return;
         }
+
+        debounce = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ChangePasswordAsync()
@@ -131,18 +141,24 @@ else if (AccessToken is not null && ChangePassword)
         {
             // Something went wrong, reload the page
             navigationManager.Refresh(true);
+            debounce = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         if (NewPassword != NewPasswordConfirm)
         {
             ChangePasswordFailure = "Passwords do not match!";
+            debounce = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         if (!webAuthService.CheckComplexity(NewPassword))
         {
             ChangePasswordFailure = "Password does not minimum requirements! Password must be at least 8 characters long!";
+            debounce = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
@@ -151,6 +167,8 @@ else if (AccessToken is not null && ChangePassword)
         if (!status)
         {
             ChangePasswordFailure = "Failed to set the new password. Please contact support!";
+            debounce = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 

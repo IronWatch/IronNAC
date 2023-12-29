@@ -3,10 +3,24 @@
 
 @if (selectedNetworkGroup is null)
 {
+    <h5 class="text-center mt-3">Available Network Groups</h5>
+    <p>Please select a network group. Non-pooled groups will allow for specific network selection, while pooled groups will assign your device to any open network.</p>
+
+    @if (!networkGroups.Any())
+    {
+        <div class="alert alert-warning">
+            <h5>No Networks Groups Available</h5>
+            <p>At this time, all available network are at capacity. Please contact the IT support team for help!</p>
+        </div>
+    }
     @foreach (NetworkGroup networkGroup in networkGroups)
     {
-        <div class="card p-3 mt-4" @onclick="@(_ => SelectNetworkGroup(networkGroup))">
+        <div class="card p-3 mb-3" @onclick="@(_ => SelectNetworkGroup(networkGroup))">
             <h3>@networkGroup.Name</h3>
+            @if (!string.IsNullOrWhiteSpace(networkGroup.Description))
+            {
+                <p class="mt-2 mb-1">@networkGroup.Description</p>
+            }
             <p class="mt-2 mb-1">
                 Pooled: <code>@(networkGroup.IsPool ? "YES" : "NO")</code><br />
                 Networks: <code>@networkGroup.Networks.Count</code><br />
@@ -24,10 +38,24 @@
 }
 else if (!selectedNetworkGroup.IsPool && selectedNetwork is null)
 {
+    <h5 class="text-center mt-3">Networks in "@selectedNetworkGroup.Name"</h5>
+    <p>You have selected a non-pooled group. Please select a network:</p>
+    
+    @if (!selectedNetworkGroup.Networks.Any())
+    {
+        <div class="alert alert-warning">
+            <h5>No Networkss Available</h5>
+            <p>At this time, all available network are at capacity. Please contact the IT support team for help!</p>
+        </div>
+    }
     @foreach (Network network in selectedNetworkGroup.Networks)
     {
-        <div class="card p-3 mt-4" @onclick="@(_ => SelectNetwork(network))">
+        <div class="card p-3 mb-3" @onclick="@(_ => SelectNetwork(network))">
             <h3>@network.Name</h3>
+            @if (!string.IsNullOrWhiteSpace(network.Description))
+            {
+                <p class="mt-2 mb-1">@network.Description</p>
+            }
             <p class="mt-2 mb-1">
                 Subnet: <code>@network.NetworkAddress</code><br />
                 <code>@(networkUsage.GetValueOrDefault(network.Id))</code> of <code>@(network.Capacity)</code> addresses in use
@@ -42,7 +70,7 @@ else if (!selectedNetworkGroup.IsPool && selectedNetwork is null)
         </div>
     }
 
-    <button class="btn btn-outline-info mt-3" @onclick="async _ => {await SetNetworkGroup(null); await SetNetwork(null);}">Return To Select A Network</button>
+    <button class="btn btn-outline-info" @onclick="async _ => {await SetNetworkGroup(null); await SetNetwork(null);}">Return To Select A Network</button>
 }
 
 @code {
@@ -86,6 +114,12 @@ else if (!selectedNetworkGroup.IsPool && selectedNetwork is null)
             await InvokeAsync(StateHasChanged);
         };
 
+        dataRefresh.UserDetailsNotification += async (sender, eventArgs) =>
+        {
+            await Refresh();
+            await InvokeAsync(StateHasChanged);
+        };
+
         await Refresh();
         await InvokeAsync(StateHasChanged);
     }
@@ -109,8 +143,9 @@ else if (!selectedNetworkGroup.IsPool && selectedNetwork is null)
         {
             networkGroups = await db.UserNetworkGroups
                 .Where(x => x.UserId == ShowForUserId)
+                .Include(x => x.NetworkGroup)
+                    .ThenInclude(x => x.Networks)
                 .Select(x => x.NetworkGroup)
-                .Include(x => x.Networks)
                 .ToListAsync();
         }
 

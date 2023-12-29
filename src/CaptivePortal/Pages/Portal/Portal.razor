@@ -23,18 +23,18 @@ else
     @if (!Device.Authorized || Device.AuthorizedUntil <= DateTime.UtcNow)
     {
         <h5 class="text-center">This device is not yet registered</h5>
-        <button class="btn btn-primary btn-lg mt-2 mb-3" @onclick="@(async _ => await StartRegisterStaffAsync())">
+        <button class="btn btn-primary btn-lg mt-2 mb-3" @onclick="@(async _ => {await Debounce(); await StartRegisterStaffAsync();})" disabled="@debounce">
             I am a Staff or Faculty Member
         </button>
-        <button class="btn btn-primary btn-lg" @onclick="@(async _ => await StartRegisterGuestAsync())">
+        <button class="btn btn-primary btn-lg" @onclick="@(async _ => {await Debounce(); await StartRegisterGuestAsync();})" disabled="@debounce">
             I am a Student or Guest
         </button>
     }
     else
     {
         <p>This device is authorized until @Device.AuthorizedUntil</p>
-        <button class="btn btn-primary" @onclick="async _ => await DisconnectDevice(Device)">Reconnect Device</button>
-        <button class="btn btn-danger" @onclick="async _ => await RemoveDevice(Device)">Remove Device Authorization</button>
+        <button class="btn btn-primary" @onclick="@(async _ => {await Debounce(); await DisconnectDevice(Device);})" disabled="@debounce">Reconnect Device</button>
+        <button class="btn btn-danger" @onclick="@(async _ => {await Debounce(); await RemoveDevice(Device);})" disabled="@debounce">Remove Device Authorization</button>
     }
 
     <hr />
@@ -61,6 +61,13 @@ else
     public Device? Device { get; set; }
 
     private Timer? timer;
+
+    private bool debounce;
+    public async Task Debounce()
+    {
+        debounce = true;
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnAfterRender(bool firstRender)
     {

@@ -23,21 +23,24 @@
         {
             <h5 class="text-center">Select your Network</h5>
 
-            @foreach (NetworkGroup networkGroup in networkGroups)
+            @if (!debounce)
             {
-                <div class="card p-3 mt-4" @onclick="@(_ => selectedNetworkGroup = networkGroup)">
-                    <h3>@networkGroup.Name</h3>
-                    <p class="mt-2 mb-1">
-                        <code>@(networkGroupUsage.GetValueOrDefault(networkGroup.Id))</code> of <code>@(networkGroupCapacity.GetValueOrDefault(networkGroup.Id))</code> addresses in use
-                    </p>
-                    <div class="d-flex align-items-center">
-                        <div class="progress flex-grow-1" style="height: 32px;">
-                            <div class="progress-bar overflow-visible" style="@($"width: {GetGroupUsagePercentage(networkGroup.Id)};")">
-                                <span class="p-2 fs-5">@(GetGroupUsagePercentage(networkGroup.Id)) Full</span>
+                @foreach (NetworkGroup networkGroup in networkGroups)
+                {
+                    <div class="card p-3 mt-4" @onclick="@(_ => {selectedNetworkGroup = networkGroup; })">
+                        <h3>@networkGroup.Name</h3>
+                        <p class="mt-2 mb-1">
+                            <code>@(networkGroupUsage.GetValueOrDefault(networkGroup.Id))</code> of <code>@(networkGroupCapacity.GetValueOrDefault(networkGroup.Id))</code> addresses in use
+                        </p>
+                        <div class="d-flex align-items-center">
+                            <div class="progress flex-grow-1" style="height: 32px;">
+                                <div class="progress-bar overflow-visible" style="@($"width: {GetGroupUsagePercentage(networkGroup.Id)};")">
+                                    <span class="p-2 fs-5">@(GetGroupUsagePercentage(networkGroup.Id)) Full</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                }
             }
         }
         else
@@ -48,10 +51,10 @@
                 <p>If your device does not reconnect automatically, you will need to manually reconnect to the Wifi network!</p>
             </div>
 
-            <button class="btn btn-primary btn-lg mb-3" @onclick="async _ => await RegisterAsync()">Register this Device</button>
+            <button class="btn btn-primary btn-lg mb-3" @onclick="@(async _ => {await Debounce(); await RegisterAsync();})" disabled="@debounce">Register this Device</button>
         }
 
-        <button class="btn btn-outline-warning mt-3" @onclick="ReturnToStart">Return to Start</button>
+        <button class="btn btn-outline-warning mt-3" @onclick="@(async _ => {await Debounce(); ReturnToStart();})" disabled="@debounce">Return to Start</button>
     }
     else
     {
@@ -85,6 +88,13 @@
     private string? registerFailure;
 
     private bool noNetworksAvailable;
+
+    private bool debounce;
+    public async Task Debounce()
+    {
+        debounce = true;
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -182,13 +192,13 @@
         return $"{percentage}%";
     }
 
-    private void SelectNetworkGroup(ChangeEventArgs e)
+    /*private void SelectNetworkGroup(ChangeEventArgs e)
     {
         if (e.Value is null) return;
         selectedNetworkGroup = networkGroups
             .Where(x => x.Id == (int)e.Value)
             .FirstOrDefault();
-    }
+    }*/
 
     private async Task RegisterAsync()
     {

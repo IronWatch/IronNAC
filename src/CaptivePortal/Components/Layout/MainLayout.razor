@@ -4,8 +4,8 @@
 <AuthenticateUser>
     <div class="w-100 d-flex justify-content-center p-2">
         <div class="card bg-body-tertiary shadow flex-grow-1 p-4" style="max-width: 600px;">
-            <h1 class="text-center">IronNAC</h1>
-            <h3 class="text-center">Network Access Control</h3>
+            <h1 class="text-center">@((MarkupString)configuration.TextTitle)</h1>
+            <h3 class="text-center">@((MarkupString)configuration.TextSubtitle)</h3>
 
             <hr />
         
@@ -13,7 +13,7 @@
 
             <hr />
 
-            <p class="text-center">Need Support? <a href="https://ironwatch.net/" target="_blank">Contact IronWatch LLC</a></p>
+            <p class="text-center">@((MarkupString)configuration.TextHelp)</p>
 
             @if (configuration.WebHttpsCertStaging)
             {

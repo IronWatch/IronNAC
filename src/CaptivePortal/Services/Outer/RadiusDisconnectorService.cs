@@ -15,10 +15,33 @@ namespace CaptivePortal.Services.Outer
         private byte[] secret;
         private byte lastSentIdentifier = 0;
 
+        private readonly IDbContextFactory<IronNacDbContext> dbFactory;
+
         public RadiusDisconnectorService(
-            IronNacConfiguration configuration)
+            IronNacConfiguration configuration, 
+            IDbContextFactory<IronNacDbContext> dbFactory)
         {
             secret = Encoding.ASCII.GetBytes(configuration.RadiusAccountingSecret);
+            this.dbFactory = dbFactory;
+        }
+
+        public async Task DisconnectAllUserDevices(int userId, CancellationToken cancellationToken = default)
+        {
+            using IronNacDbContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+            List<Device> devices = await db.Devices
+                .AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            await db.Devices
+                .Where(x => x.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            foreach (Device device in devices)
+            {
+                await Disconnect(device, cancellationToken);
+            }
         }
 
         public Task<bool> Disconnect(Device device, CancellationToken cancellationToken = default)

@@ -92,6 +92,15 @@ namespace CaptivePortal.Services.Outer
         [Env("IRONNAC_DNS_REDIRECT_ADDRESS")]
         public string DnsRedirectAddress { get; set; } = null!;
 
+        [Env("IRONNAC_TEXT_TITLE", defaultValue: "IronNAC")]
+        public string TextTitle { get; set; } = null!;
+
+        [Env("IRONNAC_TEXT_SUBTITLE", defaultValue: "Network Access Control")]
+        public string TextSubtitle { get; set; } = null!;
+
+        [Env("IRONNAC_TEXT_HELP", defaultValue: "Need Support? <a href=\"https://ironwatch.net/\" target=\"_blank\">Contact IronWatch LLC</a>")]
+        public string TextHelp { get; set; } = null!;
+
         [MemberNotNullWhen(true, [
             nameof(WebHostname),
             nameof(WebHttpsCertEmail),
