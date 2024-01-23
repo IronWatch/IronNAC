@@ -15,7 +15,7 @@ namespace CaptivePortal.Helpers
         [GeneratedRegex(@"^[A-Z0-9_]+$")]
         private static partial Regex EnvKeyRegex();
 
-        [GeneratedRegex(@"^[']([^']*[^'\\])[']|^[\""]([^\""]*[^\""\\])[\""]|^[`]([^`]*[^`\\])[`]+")]
+        [GeneratedRegex(@"^[']([^']*[^'\\]?)[']|^[\""]([^\""]*[^\""\\]?)[\""]|^[`]([^`]*[^`\\]?)[`]+")]
         private static partial Regex EnvQuotedValueRegex();
 
         [GeneratedRegex(@"^['\""`]")]

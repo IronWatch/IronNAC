@@ -35,6 +35,9 @@ namespace CaptivePortal.Database
             csb.Database = configuration.DatabaseDbName;
             csb.Username = configuration.DatabaseUsername;
             csb.Password = configuration.DatabasePassword;
+            csb.Pooling = true;
+            csb.Multiplexing = true;
+            csb.MaxPoolSize = 50;
 
             optionsBuilder.UseNpgsql(csb.ToString());
         }
