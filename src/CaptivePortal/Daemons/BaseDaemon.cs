@@ -7,7 +7,7 @@ namespace CaptivePortal.Daemons
     {
         protected readonly ILogger Logger;
 
-        protected CancellationTokenSource StoppingTokenSource = new();
+        protected CancellationTokenSource? StoppingTokenSource;
         protected SemaphoreSlim StoppedSemaphore = new(0, 1);
         protected SemaphoreSlim RestartSemaphore = new(0, 1);
 
@@ -26,6 +26,8 @@ namespace CaptivePortal.Daemons
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                StoppingTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
                 await EntryPoint(StoppingTokenSource.Token);
 
                 Logger.LogInformation("{daemon} stopped", typeof(T).Name);
@@ -63,6 +65,11 @@ namespace CaptivePortal.Daemons
             {
                 Logger.LogInformation("{daemon} already stopped", typeof(T).Name);
                 return Task.FromResult(true);
+            }
+
+            if (StoppingTokenSource is null)
+            {
+                throw new InvalidOperationException("StoppingTokenSource has not yet been set. The Daemon must be started before it can be stopped!");
             }
 
             StoppingTokenSource.Cancel();
